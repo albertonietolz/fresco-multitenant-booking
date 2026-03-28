@@ -6,6 +6,7 @@ import lombok.*;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 
+// Entidad que define los horarios laborales de un empleado por día de la semana.
 @Entity
 @Table(name = "working_hours")
 @Getter

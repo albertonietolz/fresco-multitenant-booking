@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Map;
 
+// Servicio responsable de generar, firmar y validar tokens JWT.
 @Service
 public class JwtService {
 
@@ -23,6 +24,7 @@ public class JwtService {
     public String generateToken(UserDetails userDetails, Long tenantId) {
         return Jwts.builder()
                 .subject(userDetails.getUsername())
+                // El tenantId se incluye en el payload para recuperarlo en cada petición sin consultar BD.
                 .claims(Map.of("tenantId", tenantId))
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtProperties.getExpiration()))
@@ -36,8 +38,9 @@ public class JwtService {
 
     public Long extractTenantId(String token) {
         Object tenantId = parseClaims(token).get("tenantId");
-        if (tenantId instanceof Integer) {
-            return ((Integer) tenantId).longValue();
+        // Jackson deserializa números pequeños como Integer; el pattern matching evita el cast explícito.
+        if (tenantId instanceof Integer i) {
+            return i.longValue();
         }
         return (Long) tenantId;
     }
@@ -52,6 +55,7 @@ public class JwtService {
     }
 
     private Claims parseClaims(String token) {
+        // verifyWith comprueba la firma antes de devolver el payload; lanza excepción si el token fue manipulado.
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()

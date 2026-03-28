@@ -3,6 +3,7 @@ package com.albertonietolozano.fresco.security;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+// Propiedades de configuración JWT leídas desde application.yaml bajo el prefijo "jwt".
 @Component
 @ConfigurationProperties(prefix = "jwt")
 public class JwtProperties {

@@ -3,6 +3,7 @@ package com.albertonietolozano.fresco.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+// Entidad que almacena el valor de un campo personalizado para una reserva concreta.
 @Entity
 @Table(name = "booking_field_values")
 @Getter

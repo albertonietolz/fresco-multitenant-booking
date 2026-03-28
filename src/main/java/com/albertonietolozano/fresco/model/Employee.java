@@ -3,6 +3,7 @@ package com.albertonietolozano.fresco.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+// Entidad que representa un empleado de un tenant.
 @Entity
 @Table(name = "employees")
 @Getter

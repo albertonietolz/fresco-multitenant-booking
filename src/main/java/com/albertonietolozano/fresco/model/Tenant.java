@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+// Entidad que representa un negocio registrado en la plataforma.
 @Entity
 @Table(name = "tenants")
 @Getter

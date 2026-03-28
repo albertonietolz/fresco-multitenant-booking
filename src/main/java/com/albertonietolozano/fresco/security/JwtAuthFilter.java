@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+// Filtro HTTP que intercepta cada petición, extrae el token JWT y establece la autenticación en el SecurityContext.
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
@@ -34,6 +35,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
+        // Si no hay token, se deja pasar la petición sin autenticar; SecurityConfig decidirá si el endpoint es público.
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -42,6 +44,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
         String email = jwtService.extractEmail(token);
 
+        // Se comprueba que no haya ya una autenticación activa para no sobreescribir una sesión existente en el hilo.
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 

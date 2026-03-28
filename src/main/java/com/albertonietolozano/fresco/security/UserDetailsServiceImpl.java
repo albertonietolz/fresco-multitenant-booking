@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+// Implementación de UserDetailsService que carga el usuario desde base de datos por email.
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
 
@@ -27,6 +28,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
+                // Spring Security exige el prefijo "ROLE_" para que hasRole() funcione correctamente.
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
     }

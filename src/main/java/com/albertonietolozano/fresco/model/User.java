@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+// Entidad que representa un usuario administrador vinculado a un tenant.
 @Entity
 @Table(name = "users")
 @Getter

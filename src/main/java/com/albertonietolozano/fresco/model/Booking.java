@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
+// Entidad que representa una reserva de un cliente para un servicio concreto.
 @Entity
 @Table(name = "bookings")
 @Getter

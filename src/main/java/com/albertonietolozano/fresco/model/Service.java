@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 
+// Entidad que representa un servicio ofrecido por un tenant.
 @Entity
 @Table(name = "services")
 @Getter

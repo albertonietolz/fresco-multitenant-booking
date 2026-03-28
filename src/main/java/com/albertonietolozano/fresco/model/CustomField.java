@@ -4,6 +4,7 @@ import com.albertonietolozano.fresco.model.enums.FieldType;
 import jakarta.persistence.*;
 import lombok.*;
 
+// Entidad que define un campo personalizado asociado a un tenant o a un servicio concreto.
 @Entity
 @Table(name = "custom_fields")
 @Getter
