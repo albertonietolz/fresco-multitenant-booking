@@ -1,3 +1,22 @@
 spring:
   application:
     name: fresco
+
+  datasource:
+    url: jdbc:postgresql://localhost:5433/fresco
+    username: postgres
+    password: 1234
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+jwt:
+  secret: fresco-secret-key-multitenant-booking-platform-2026
+  expiration: 86400000
