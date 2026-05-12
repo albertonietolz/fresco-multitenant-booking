@@ -8,12 +8,13 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 // Configuración central de Spring Security: política de sesión, reglas de acceso y registro del filtro JWT.
@@ -32,13 +33,21 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.disable())
+                .formLogin(formLogin -> formLogin.disable())
+                .httpBasic(httpBasic -> httpBasic.disable())
                 // STATELESS indica que el servidor no crea ni mantiene sesiones HTTP; cada petición se autentica por token.
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/{slug}/booking/**").permitAll()
+                        // /error debe ser público para que Spring Boot pueda renderizar respuestas de error.
+                        .requestMatchers("/api/auth/**", "/error").permitAll()
+                        // Ant pattern sin variable de ruta para evitar ambigüedad con el MVC matcher de Spring Security 7.
+                        .requestMatchers("/*/booking/**").permitAll()
                         .anyRequest().authenticated()
+                )
+                // Sin formLogin ni httpBasic el entry point por defecto es Http403ForbiddenEntryPoint; lo sobreescribimos a 401.
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 )
                 .authenticationProvider(authenticationProvider())
                 // El filtro JWT debe ejecutarse antes que el filtro de autenticación por formulario para que el SecurityContext esté listo.

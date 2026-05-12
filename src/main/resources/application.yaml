@@ -20,3 +20,14 @@ spring:
 jwt:
   secret: fresco-secret-key-multitenant-booking-platform-2026
   expiration: 86400000
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://db:5433/fresco
+  jpa:
+    hibernate:
+      ddl-auto: update
