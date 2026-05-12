@@ -16,6 +16,8 @@ Fresco es una plataforma backend que permite a negocios de servicios — peluque
 
 El nombre toma como referencia la tecnica que Miguel Angel utilizo para pintar el techo de la Capilla Sixtina. Un fresco se construye capa a capa sobre el yeso humedo: cada capa se une permanentemente a la anterior y, una vez seca, el conjunto forma una superficie coherente. La plataforma Fresco se construye del mismo modo: autenticacion, multitenancy, logica de dominio y flujo publico de reservas son capas independientes que se componen en un todo unificado. Cada negocio que se registra obtiene su propio espacio aislado dentro de esa superficie, invisible para los demas, pero ejecutandose sobre la misma base.
 
+![Sistine Chapel ceiling](https://github.com/user-attachments/assets/5cda1481-5f26-4c1f-ae99-498e444170b1)
+
 ---
 
 ## Arquitectura

@@ -16,6 +16,8 @@ Fresco is a backend platform that allows service businesses — hairdressers, cl
 
 The name draws on the technique Michelangelo used to paint the Sistine Chapel ceiling. A fresco is built layer by layer on wet plaster: each layer bonds permanently to the one beneath, and once dry, the whole becomes a single coherent surface. Fresco the platform is built the same way — authentication, multi-tenancy, domain logic and public booking flow are independent layers that compose into a unified whole. Each business that registers gets its own isolated space within that surface, invisible to the others, yet running on the same foundation.
 
+![Sistine Chapel ceiling](https://github.com/user-attachments/assets/5cda1481-5f26-4c1f-ae99-498e444170b1)
+
 ---
 
 ## Architecture
