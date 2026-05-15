@@ -1,22 +1,25 @@
 package com.albertonietolozano.fresco.service.impl;
 
 import com.albertonietolozano.fresco.dto.request.ServiceRequest;
+import com.albertonietolozano.fresco.dto.response.CustomFieldResponse;
 import com.albertonietolozano.fresco.dto.response.ServiceResponse;
 import com.albertonietolozano.fresco.model.Service;
+import com.albertonietolozano.fresco.repository.CustomFieldRepository;
 import com.albertonietolozano.fresco.repository.ServiceRepository;
 import com.albertonietolozano.fresco.service.ServiceService;
 import com.albertonietolozano.fresco.tenant.TenantContext;
 
 import java.util.List;
 
-// Implementación del servicio de servicios del tenant con aislamiento multitenant y borrado lógico.
 @org.springframework.stereotype.Service
 public class ServiceServiceImpl implements ServiceService {
 
     private final ServiceRepository serviceRepository;
+    private final CustomFieldRepository customFieldRepository;
 
-    public ServiceServiceImpl(ServiceRepository serviceRepository) {
+    public ServiceServiceImpl(ServiceRepository serviceRepository, CustomFieldRepository customFieldRepository) {
         this.serviceRepository = serviceRepository;
+        this.customFieldRepository = customFieldRepository;
     }
 
     @Override
@@ -29,7 +32,6 @@ public class ServiceServiceImpl implements ServiceService {
 
     @Override
     public ServiceResponse getById(Long id) {
-        // El filter garantiza que un tenant no pueda acceder a recursos de otro aunque adivine el id.
         return serviceRepository.findById(id)
                 .filter(s -> s.getTenantId().equals(TenantContext.getTenantId()))
                 .map(this::toResponse)
@@ -41,9 +43,7 @@ public class ServiceServiceImpl implements ServiceService {
         Service service = Service.builder()
                 .tenantId(TenantContext.getTenantId())
                 .name(request.name())
-                .description(request.description())
                 .duration(request.duration())
-                .price(request.price())
                 .active(true)
                 .build();
 
@@ -57,9 +57,7 @@ public class ServiceServiceImpl implements ServiceService {
                 .orElseThrow(() -> new RuntimeException("Service not found"));
 
         service.setName(request.name());
-        service.setDescription(request.description());
         service.setDuration(request.duration());
-        service.setPrice(request.price());
 
         return toResponse(serviceRepository.save(service));
     }
@@ -75,13 +73,12 @@ public class ServiceServiceImpl implements ServiceService {
     }
 
     private ServiceResponse toResponse(Service service) {
-        return new ServiceResponse(
-                service.getId(),
-                service.getName(),
-                service.getDescription(),
-                service.getDuration(),
-                service.getPrice(),
-                service.getActive()
-        );
+        List<CustomFieldResponse> fields = customFieldRepository
+                .findAllByTenantIdAndServiceId(service.getTenantId(), service.getId())
+                .stream()
+                .map(f -> new CustomFieldResponse(f.getId(), f.getLabel(), f.getFieldType(), f.getRequired(), f.getFieldOrder()))
+                .toList();
+
+        return new ServiceResponse(service.getId(), service.getName(), service.getDuration(), service.getActive(), fields);
     }
 }

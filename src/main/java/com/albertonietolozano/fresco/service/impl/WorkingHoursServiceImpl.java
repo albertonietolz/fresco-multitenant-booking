@@ -53,6 +53,36 @@ public class WorkingHoursServiceImpl implements WorkingHoursService {
                 .toList();
     }
 
+    @Override
+    public List<WorkingHoursResponse> getBusinessHours() {
+        return workingHoursRepository
+                .findAllByTenantIdAndEmployeeIdIsNull(TenantContext.getTenantId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public List<WorkingHoursResponse> saveBusinessHours(List<WorkingHoursRequest> request) {
+        workingHoursRepository.deleteAllByTenantIdAndEmployeeIdIsNull(TenantContext.getTenantId());
+
+        List<WorkingHours> newHours = request.stream()
+                .map(r -> WorkingHours.builder()
+                        .tenantId(TenantContext.getTenantId())
+                        .employeeId(null)
+                        .dayOfWeek(r.dayOfWeek())
+                        .startTime(r.startTime())
+                        .endTime(r.endTime())
+                        .build())
+                .toList();
+
+        return workingHoursRepository.saveAll(newHours)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     private WorkingHoursResponse toResponse(WorkingHours wh) {
         return new WorkingHoursResponse(
                 wh.getId(),

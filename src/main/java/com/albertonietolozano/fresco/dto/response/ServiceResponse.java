@@ -1,13 +1,11 @@
 package com.albertonietolozano.fresco.dto.response;
 
-import java.math.BigDecimal;
+import java.util.List;
 
-// DTO de salida con los datos de un servicio del tenant.
 public record ServiceResponse(
         Long id,
         String name,
-        String description,
         Integer duration,
-        BigDecimal price,
-        Boolean active
+        Boolean active,
+        List<CustomFieldResponse> fields
 ) {}

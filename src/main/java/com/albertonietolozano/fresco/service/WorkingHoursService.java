@@ -11,4 +11,8 @@ public interface WorkingHoursService {
     List<WorkingHoursResponse> getByEmployee(Long employeeId);
 
     List<WorkingHoursResponse> save(Long employeeId, List<WorkingHoursRequest> request);
+
+    List<WorkingHoursResponse> getBusinessHours();
+
+    List<WorkingHoursResponse> saveBusinessHours(List<WorkingHoursRequest> request);
 }
