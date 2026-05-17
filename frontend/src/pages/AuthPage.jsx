@@ -398,7 +398,173 @@ const styles = `
     .two { grid-template-columns: 1fr; }
     .brand-large { font-size: 3rem; }
   }
+
+  /* ── PLANES ── */
+  .card.wide { max-width: 680px; }
+
+  .auth-plans-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  @media (max-width: 640px) {
+    .auth-plans-grid { grid-template-columns: 1fr; }
+  }
+
+  .auth-plan {
+    background: var(--white);
+    border: 1.5px solid var(--stone-border);
+    border-radius: 10px;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .auth-plan.pro {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: var(--white);
+  }
+
+  .auth-plan-badge {
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ochre);
+    margin-bottom: 8px;
+  }
+
+  .auth-plan-name {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 1.7rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .auth-plan.pro .auth-plan-name { color: var(--white); }
+
+  .auth-plan-price {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--blue);
+    line-height: 1.1;
+    margin-top: 8px;
+  }
+
+  .auth-plan.pro .auth-plan-price { color: var(--ochre); }
+
+  .auth-plan-price-sub {
+    font-size: 0.74rem;
+    color: var(--ink-muted);
+    margin-bottom: 14px;
+  }
+
+  .auth-plan.pro .auth-plan-price-sub { color: rgba(255,255,255,0.45); }
+
+  .auth-plan-divider {
+    height: 1px;
+    background: var(--stone-border);
+    margin: 10px 0 14px;
+  }
+
+  .auth-plan.pro .auth-plan-divider { background: rgba(255,255,255,0.15); }
+
+  .auth-plan-features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    flex: 1;
+    margin-bottom: 20px;
+  }
+
+  .auth-plan-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.79rem;
+    color: var(--ink-muted);
+    line-height: 1.4;
+  }
+
+  .auth-plan.pro .auth-plan-feature { color: rgba(255,255,255,0.7); }
+
+  .auth-plan-check {
+    color: var(--ochre);
+    font-weight: 700;
+    flex-shrink: 0;
+    font-size: 0.85rem;
+  }
+
+  .auth-plan-cta {
+    width: 100%;
+    padding: 11px;
+    border-radius: 6px;
+    border: 1.5px solid var(--blue);
+    background: transparent;
+    color: var(--blue);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.84rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .auth-plan-cta:hover { background: var(--blue); color: var(--white); }
+
+  .auth-plan-cta.cta-pro {
+    background: var(--ochre);
+    border-color: var(--ochre);
+    color: var(--white);
+    box-shadow: 0 4px 14px rgba(201,151,58,0.35);
+  }
+
+  .auth-plan-cta.cta-pro:hover { background: #b8842e; border-color: #b8842e; }
+
+  .auth-plan-cta:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
+
+const PLAN_FEATURES = [
+  "Reservas ilimitadas de clientes",
+  "Portal de reservas con URL personalizada",
+  "Gestión de servicios y campos personalizados",
+  "Horarios por empleado con jornadas partidas",
+  "Panel de administración con calendario",
+  "Creación manual de reservas desde el panel",
+];
+
+function AuthPlanCard({ badge, name, price, priceSub, features, ctaLabel, ctaClass, ctaDisabled, pro }) {
+  return (
+    <div className={`auth-plan${pro ? " pro" : ""}`}>
+      <div className="auth-plan-badge">{badge}</div>
+      <div className="auth-plan-name">{name}</div>
+      <div className="auth-plan-price">{price}</div>
+      <div className="auth-plan-price-sub">{priceSub}</div>
+      <div className="auth-plan-divider" />
+      <ul className="auth-plan-features">
+        {features.map((f, i) => (
+          <li key={i} className="auth-plan-feature">
+            <span className="auth-plan-check">✓</span>
+            {f}
+          </li>
+        ))}
+      </ul>
+      <button className={`auth-plan-cta${ctaClass ? " " + ctaClass : ""}`} disabled={ctaDisabled}>
+        {ctaLabel}
+      </button>
+    </div>
+  );
+}
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -494,7 +660,7 @@ export default function AuthPage() {
         </div>
 
         <div className="right">
-          <div className="card">
+          <div className={`card${tab === "planes" ? " wide" : ""}`}>
             <div className="mobile-header">
               <div>
                 <div className="mobile-brand">Fresco</div>
@@ -515,29 +681,65 @@ export default function AuthPage() {
               >
                 Crear negocio
               </button>
+              <button
+                className={`tab ${tab === "planes" ? "on" : ""}`}
+                onClick={() => go("planes")}
+              >
+                Planes
+              </button>
             </div>
 
-            <div className="card-title">
-              {tab === "login" ? (
-                <>
-                  Accede a tu <em>panel</em>
-                </>
-              ) : (
-                <>
-                  Empieza <em>hoy</em>
-                </>
-              )}
-            </div>
-            <div className="card-sub">
-              {tab === "login"
-                ? "Introduce tus credenciales para continuar."
-                : "Configura tu negocio en menos de dos minutos."}
-            </div>
+            {tab !== "planes" && (
+              <>
+                <div className="card-title">
+                  {tab === "login" ? (
+                    <>Accede a tu <em>panel</em></>
+                  ) : (
+                    <>Empieza <em>hoy</em></>
+                  )}
+                </div>
+                <div className="card-sub">
+                  {tab === "login"
+                    ? "Introduce tus credenciales para continuar."
+                    : "Configura tu negocio en menos de dos minutos."}
+                </div>
+              </>
+            )}
 
-            {error && <div className="alert err">{error}</div>}
-            {success && <div className="alert ok">{success}</div>}
+            {error && tab !== "planes" && <div className="alert err">{error}</div>}
+            {success && tab !== "planes" && <div className="alert ok">{success}</div>}
 
-            {tab === "login" ? (
+            {tab === "planes" && (
+              <>
+                <div className="card-title">Planes y <em>precios</em></div>
+                <div className="card-sub">Empieza gratis durante 30 días. Sin tarjeta de crédito.</div>
+                <div className="auth-plans-grid">
+                  <AuthPlanCard
+                    badge="Prueba gratuita"
+                    name="1 mes gratis"
+                    price="0€"
+                    priceSub="30 días · sin tarjeta"
+                    features={PLAN_FEATURES}
+                    ctaLabel="Crear mi negocio →"
+                    ctaDisabled={false}
+                    pro={false}
+                  />
+                  <AuthPlanCard
+                    badge="Plan profesional"
+                    name="Fresco Pro"
+                    price="29€"
+                    priceSub="por mes · facturación mensual"
+                    features={[...PLAN_FEATURES, "Empleados ilimitados", "Soporte prioritario", "Nuevas funciones anticipadas"]}
+                    ctaLabel="Próximamente"
+                    ctaClass="cta-pro"
+                    ctaDisabled={true}
+                    pro={true}
+                  />
+                </div>
+              </>
+            )}
+
+            {tab !== "planes" && (tab === "login" ? (
               <form onSubmit={login}>
                 <div className="f">
                   <label>Email</label>
@@ -663,25 +865,27 @@ export default function AuthPage() {
                   {loading ? "Creando..." : "Crear mi negocio →"}
                 </button>
               </form>
-            )}
+            ))}
 
-            <div className="foot">
-              {tab === "login" ? (
-                <>
-                  <span>¿Sin cuenta? </span>
-                  <span className="foot-link" onClick={() => go("register")}>
-                    Regístrate gratis
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span>¿Ya tienes cuenta? </span>
-                  <span className="foot-link" onClick={() => go("login")}>
-                    Inicia sesión
-                  </span>
-                </>
-              )}
-            </div>
+            {tab !== "planes" && (
+              <div className="foot">
+                {tab === "login" ? (
+                  <>
+                    <span>¿Sin cuenta? </span>
+                    <span className="foot-link" onClick={() => go("register")}>
+                      Regístrate gratis
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span>¿Ya tienes cuenta? </span>
+                    <span className="foot-link" onClick={() => go("login")}>
+                      Inicia sesión
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

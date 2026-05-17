@@ -44,6 +44,8 @@ public class ServiceServiceImpl implements ServiceService {
                 .tenantId(TenantContext.getTenantId())
                 .name(request.name())
                 .duration(request.duration())
+                .capacity(request.capacity())
+                .chairTime(request.chairTime())
                 .active(true)
                 .build();
 
@@ -58,6 +60,8 @@ public class ServiceServiceImpl implements ServiceService {
 
         service.setName(request.name());
         service.setDuration(request.duration());
+        service.setCapacity(request.capacity());
+        service.setChairTime(request.chairTime());
 
         return toResponse(serviceRepository.save(service));
     }
@@ -79,6 +83,6 @@ public class ServiceServiceImpl implements ServiceService {
                 .map(f -> new CustomFieldResponse(f.getId(), f.getLabel(), f.getFieldType(), f.getRequired(), f.getFieldOrder()))
                 .toList();
 
-        return new ServiceResponse(service.getId(), service.getName(), service.getDuration(), service.getActive(), fields);
+        return new ServiceResponse(service.getId(), service.getName(), service.getDuration(), service.getCapacity(), service.getChairTime(), service.getActive(), fields);
     }
 }

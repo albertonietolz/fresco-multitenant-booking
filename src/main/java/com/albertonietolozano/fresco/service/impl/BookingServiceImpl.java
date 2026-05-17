@@ -7,11 +7,14 @@ import com.albertonietolozano.fresco.dto.response.BookingResponse;
 import com.albertonietolozano.fresco.model.Booking;
 import com.albertonietolozano.fresco.model.BookingFieldValue;
 import com.albertonietolozano.fresco.model.Service;
+import com.albertonietolozano.fresco.model.Tenant;
 import com.albertonietolozano.fresco.model.WorkingHours;
 import com.albertonietolozano.fresco.model.enums.BookingStatus;
 import com.albertonietolozano.fresco.repository.BookingFieldValueRepository;
 import com.albertonietolozano.fresco.repository.BookingRepository;
+import com.albertonietolozano.fresco.repository.ClosedDateRepository;
 import com.albertonietolozano.fresco.repository.ServiceRepository;
+import com.albertonietolozano.fresco.repository.TenantRepository;
 import com.albertonietolozano.fresco.repository.WorkingHoursRepository;
 import com.albertonietolozano.fresco.service.BookingService;
 import com.albertonietolozano.fresco.tenant.TenantContext;
@@ -21,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,17 +37,23 @@ public class BookingServiceImpl implements BookingService {
     private final BookingFieldValueRepository bookingFieldValueRepository;
     private final WorkingHoursRepository workingHoursRepository;
     private final ServiceRepository serviceRepository;
+    private final TenantRepository tenantRepository;
+    private final ClosedDateRepository closedDateRepository;
 
     public BookingServiceImpl(
             BookingRepository bookingRepository,
             BookingFieldValueRepository bookingFieldValueRepository,
             WorkingHoursRepository workingHoursRepository,
-            ServiceRepository serviceRepository
+            ServiceRepository serviceRepository,
+            TenantRepository tenantRepository,
+            ClosedDateRepository closedDateRepository
     ) {
         this.bookingRepository = bookingRepository;
         this.bookingFieldValueRepository = bookingFieldValueRepository;
         this.workingHoursRepository = workingHoursRepository;
         this.serviceRepository = serviceRepository;
+        this.tenantRepository = tenantRepository;
+        this.closedDateRepository = closedDateRepository;
     }
 
     @Override
@@ -52,7 +62,6 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new RuntimeException("Service not found"));
         int duration = service.getDuration();
 
-        // Filtramos los horarios del empleado por el día de la semana de la fecha solicitada.
         List<WorkingHours> workingHoursList = workingHoursRepository.findAllByEmployeeId(employeeId)
                 .stream()
                 .filter(wh -> wh.getDayOfWeek() == date.getDayOfWeek())
@@ -62,46 +71,107 @@ public class BookingServiceImpl implements BookingService {
             return new AvailabilityResponse(List.of());
         }
 
+        Long tenantId = TenantContext.getTenantId();
+
+        // Si la fecha está marcada como cierre excepcional, no hay disponibilidad.
+        if (tenantId != null && closedDateRepository.existsByTenantIdAndDate(tenantId, date)) {
+            return new AvailabilityResponse(List.of());
+        }
+
         List<Booking> existingBookings = bookingRepository.findAllByEmployeeIdAndDate(employeeId, date)
                 .stream()
                 .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
                 .toList();
 
-        // Precargamos las duraciones de los servicios de las reservas existentes para calcular sus horas de fin.
-        Map<Long, Integer> serviceDurations = existingBookings.stream()
+        Map<Long, Integer> serviceBlockingMinutes = existingBookings.stream()
                 .map(Booking::getServiceId)
                 .distinct()
                 .collect(Collectors.toMap(
                         id -> id,
-                        id -> serviceRepository.findById(id).map(Service::getDuration).orElse(duration)
+                        id -> serviceRepository.findById(id)
+                                .map(s -> s.getChairTime() != null ? s.getChairTime() : s.getDuration())
+                                .orElse(duration)
                 ));
 
+        // Capacidad global del local: precargar reservas de todos los empleados si hay límite.
+        Tenant tenant = tenantId != null ? tenantRepository.findById(tenantId).orElse(null) : null;
+        int globalCap = (tenant != null && tenant.getMaxCapacity() != null) ? tenant.getMaxCapacity() : 0;
+        boolean hasGlobalCap = globalCap > 0;
+        List<Booking> allTenantBookings = hasGlobalCap
+                ? bookingRepository.findAllByTenantIdAndDate(tenantId, date).stream()
+                        .filter(b -> b.getStatus() != BookingStatus.CANCELLED).toList()
+                : List.of();
+
+        // Mapa de duración real (no chairTime) para el cálculo de solapamiento de aforo global.
+        Map<Long, Integer> serviceDurationMap = new HashMap<>();
+
         List<LocalTime> slots = new ArrayList<>();
+
+        // capacity = null → cita individual; capacity = 0 → ilimitado; capacity > 0 → grupo con límite.
+        boolean isUnlimited = service.getCapacity() != null && service.getCapacity() == 0;
+        boolean isLimitedGroup = service.getCapacity() != null && service.getCapacity() > 0;
 
         for (WorkingHours wh : workingHoursList) {
             LocalTime current = wh.getStartTime();
             LocalTime blockEnd = wh.getEndTime();
 
-            // Generamos franjas avanzando por la duración del servicio hasta agotar el bloque horario.
             while (!current.plusMinutes(duration).isAfter(blockEnd)) {
                 final LocalTime slotStart = current;
                 final LocalTime slotEnd = current.plusMinutes(duration);
 
-                boolean isOccupied = existingBookings.stream().anyMatch(b -> {
-                    LocalTime bookingEnd = b.getStartTime().plusMinutes(serviceDurations.get(b.getServiceId()));
-                    // Dos intervalos [a,b) y [c,d) se solapan si a < d && c < b.
-                    return slotStart.isBefore(bookingEnd) && b.getStartTime().isBefore(slotEnd);
-                });
+                boolean slotOk;
 
-                if (!isOccupied) {
-                    slots.add(slotStart);
+                if (isUnlimited) {
+                    // Sin límite de plazas: siempre disponible dentro del horario.
+                    slotOk = true;
+                } else if (isLimitedGroup) {
+                    long bookingsAtSlot = existingBookings.stream()
+                            .filter(b -> b.getServiceId().equals(serviceId) && b.getStartTime().equals(slotStart))
+                            .count();
+                    slotOk = bookingsAtSlot < service.getCapacity();
+                } else {
+                    boolean isOccupied = existingBookings.stream().anyMatch(b -> {
+                        LocalTime bookingEnd = b.getStartTime().plusMinutes(serviceBlockingMinutes.get(b.getServiceId()));
+                        return slotStart.isBefore(bookingEnd) && b.getStartTime().isBefore(slotEnd);
+                    });
+                    slotOk = !isOccupied;
                 }
 
+                // Comprobación de aforo global del local.
+                if (slotOk && hasGlobalCap) {
+                    long concurrent = allTenantBookings.stream().filter(b -> {
+                        int bDur = serviceDurationMap.computeIfAbsent(b.getServiceId(),
+                                id -> serviceRepository.findById(id).map(Service::getDuration).orElse(60));
+                        LocalTime bStart = b.getStartTime();
+                        if (bStart == null) return false;
+                        LocalTime bEnd = bStart.plusMinutes(bDur);
+                        return slotStart.isBefore(bEnd) && bStart.isBefore(slotEnd);
+                    }).count();
+                    slotOk = concurrent < globalCap;
+                }
+
+                if (slotOk) slots.add(slotStart);
                 current = current.plusMinutes(duration);
             }
         }
 
         return new AvailabilityResponse(slots);
+    }
+
+    @Override
+    public List<String> getAvailableDatesForMonth(Long employeeId, Long serviceId, int year, int month) {
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+        LocalDate today = LocalDate.now();
+
+        List<String> availableDates = new ArrayList<>();
+        for (LocalDate date = start.isBefore(today) ? today : start; !date.isAfter(end); date = date.plusDays(1)) {
+            AvailabilityResponse avail = getAvailableSlots(employeeId, serviceId, date);
+            if (!avail.slots().isEmpty()) {
+                availableDates.add(date.toString());
+            }
+        }
+        return availableDates;
     }
 
     @Override

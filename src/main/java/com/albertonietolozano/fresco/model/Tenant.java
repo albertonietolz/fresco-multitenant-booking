@@ -37,4 +37,6 @@ public class Tenant {
 
     @Column(nullable = false)
     private Boolean active;
+
+    private Integer maxCapacity;
 }

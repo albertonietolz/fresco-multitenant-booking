@@ -23,7 +23,7 @@ public class WorkingHours {
     @Column(nullable = false)
     private Long tenantId;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Long employeeId;
 
     @Enumerated(EnumType.STRING)

@@ -46,8 +46,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // /error debe ser público para que Spring Boot pueda renderizar respuestas de error.
                         .requestMatchers("/api/auth/**", "/error").permitAll()
-                        // Ant pattern sin variable de ruta para evitar ambigüedad con el MVC matcher de Spring Security 7.
                         .requestMatchers("/*/booking/**").permitAll()
+                        // Login y listado de nombres para el portal de empleados son públicos.
+                        .requestMatchers("/*/employee/login", "/*/employee/staff").permitAll()
                         .anyRequest().authenticated()
                 )
                 // Sin formLogin ni httpBasic el entry point por defecto es Http403ForbiddenEntryPoint; lo sobreescribimos a 401.

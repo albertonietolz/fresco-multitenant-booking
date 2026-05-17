@@ -13,6 +13,8 @@ public interface BookingService {
 
     AvailabilityResponse getAvailableSlots(Long employeeId, Long serviceId, LocalDate date);
 
+    List<String> getAvailableDatesForMonth(Long employeeId, Long serviceId, int year, int month);
+
     BookingResponse createBooking(BookingRequest request, Long tenantId);
 
     List<BookingResponse> getAllByTenant();

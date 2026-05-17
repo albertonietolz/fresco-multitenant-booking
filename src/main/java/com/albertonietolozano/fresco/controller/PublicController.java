@@ -17,6 +17,7 @@ import com.albertonietolozano.fresco.dto.response.AvailabilityResponse;
 import com.albertonietolozano.fresco.dto.response.BookingResponse;
 import com.albertonietolozano.fresco.dto.response.EmployeeResponse;
 import com.albertonietolozano.fresco.dto.response.ServiceResponse;
+import com.albertonietolozano.fresco.dto.response.TenantResponse;
 import com.albertonietolozano.fresco.model.Tenant;
 import com.albertonietolozano.fresco.repository.TenantRepository;
 import com.albertonietolozano.fresco.service.BookingService;
@@ -65,7 +66,7 @@ public class PublicController {
         Long tenantId = resolveTenantId(slug);
         TenantContext.setTenantId(tenantId);
         try {
-            return ResponseEntity.ok(employeeService.getAll());
+            return ResponseEntity.ok(employeeService.getAllByServiceId(serviceId));
         } finally {
             TenantContext.clear();
         }
@@ -89,6 +90,29 @@ public class PublicController {
     ) {
         Long tenantId = resolveTenantId(slug);
         return ResponseEntity.ok(bookingService.createBooking(request, tenantId));
+    }
+
+    @GetMapping("/availability/month")
+    public ResponseEntity<List<String>> getMonthAvailability(
+            @PathVariable String slug,
+            @RequestParam Long employeeId,
+            @RequestParam Long serviceId,
+            @RequestParam int year,
+            @RequestParam int month
+    ) {
+        resolveTenantId(slug);
+        return ResponseEntity.ok(bookingService.getAvailableDatesForMonth(employeeId, serviceId, year, month));
+    }
+
+    @GetMapping("/info")
+    public ResponseEntity<TenantResponse> getTenantInfo(@PathVariable String slug) {
+        Tenant tenant = tenantRepository.findBySlug(slug)
+                .orElseThrow(() -> new RuntimeException("Tenant not found for slug: " + slug));
+        return ResponseEntity.ok(new TenantResponse(
+                tenant.getId(), tenant.getName(), tenant.getSlug(),
+                tenant.getEmail(), tenant.getPhone(), tenant.getAddress(),
+                tenant.getMaxCapacity()
+        ));
     }
 
     // Resuelve el tenantId a partir del slug; lanza excepción si el negocio no existe.

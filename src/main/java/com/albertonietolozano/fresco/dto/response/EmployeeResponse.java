@@ -1,5 +1,7 @@
 package com.albertonietolozano.fresco.dto.response;
 
+import java.util.List;
+
 // DTO de salida con los datos de un empleado del tenant.
 public record EmployeeResponse(
         Long id,
@@ -7,5 +9,7 @@ public record EmployeeResponse(
         String email,
         String phone,
         Long userId,
-        Boolean active
+        Boolean active,
+        List<Long> serviceIds,
+        Boolean hasPinSet
 ) {}

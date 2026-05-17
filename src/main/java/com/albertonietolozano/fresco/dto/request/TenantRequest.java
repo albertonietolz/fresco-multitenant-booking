@@ -4,5 +4,6 @@ public record TenantRequest(
         String name,
         String email,
         String phone,
-        String address
+        String address,
+        Integer maxCapacity
 ) {}

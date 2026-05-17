@@ -24,20 +24,18 @@ const styles = `
     --error: #dc2626;
   }
 
-  html, body { height: 100%; margin: 0; padding: 0; }
+  html, body { height: 100%; margin: 0; padding: 0; background: var(--stone); }
 
   body {
     font-family: 'DM Sans', system-ui, sans-serif;
-    background: var(--stone);
     color: var(--ink);
     min-height: 100vh;
   }
 
   /* ── LAYOUT ── */
   .dash {
-    display: grid;
-    grid-template-columns: var(--sidebar-w) 1fr;
     min-height: 100vh;
+    background: var(--stone);
   }
 
   /* ── SIDEBAR ── */
@@ -45,10 +43,14 @@ const styles = `
     background: var(--blue);
     display: flex;
     flex-direction: column;
-    position: sticky;
+    position: fixed;
+    left: 0;
     top: 0;
-    height: 100vh;
-    overflow: hidden;
+    bottom: 0;
+    width: var(--sidebar-w);
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 50;
   }
 
   .sidebar::before {
@@ -186,6 +188,7 @@ const styles = `
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    margin-left: var(--sidebar-w);
   }
 
   .topbar {
@@ -242,18 +245,25 @@ const styles = `
   /* ── STATS ── */
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 32px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
   }
 
   .stat-card {
     background: var(--white);
     border: 1px solid var(--stone-border);
-    border-radius: 8px;
-    padding: 20px 24px;
+    border-radius: 10px;
+    padding: 18px 20px;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 1px 4px rgba(8,12,30,0.04);
+    transition: box-shadow 0.18s, transform 0.18s;
+  }
+
+  .stat-card:hover {
+    box-shadow: 0 4px 16px rgba(8,12,30,0.09);
+    transform: translateY(-1px);
   }
 
   .stat-card::after {
@@ -267,20 +277,255 @@ const styles = `
   }
 
   .stat-label {
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     font-weight: 500;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
     color: var(--ink-muted);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .stat-value {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 2.4rem;
+    font-size: 2.2rem;
     font-weight: 600;
     color: var(--blue);
     line-height: 1;
+  }
+
+  .stat-delta {
+    font-size: 0.72rem;
+    font-weight: 500;
+    margin-top: 5px;
+  }
+  .stat-delta.up   { color: var(--success); }
+  .stat-delta.down { color: var(--error); }
+  .stat-delta.flat { color: var(--ink-muted); }
+
+  .stat-sub {
+    font-size: 0.74rem;
+    color: var(--ink-muted);
+    margin-top: 4px;
+  }
+
+  /* ── ANALYTICS PERIOD PICKER ── */
+  .an-period {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .an-seg {
+    display: flex;
+    border: 1.5px solid var(--stone-border);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  .an-seg-btn {
+    padding: 6px 12px;
+    background: var(--white);
+    border: none;
+    border-right: 1px solid var(--stone-border);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .an-seg-btn:last-child { border-right: none; }
+  .an-seg-btn:hover { background: var(--stone); color: var(--ink); }
+  .an-seg-btn.active { background: var(--blue); color: #fff; font-weight: 500; }
+
+  .an-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .an-date-input {
+    padding: 6px 10px;
+    border: 1.5px solid var(--stone-border);
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.80rem;
+    color: var(--ink);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.13s;
+  }
+  .an-date-input:focus { border-color: var(--blue); }
+
+  .an-period-label {
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    font-style: italic;
+    white-space: nowrap;
+  }
+
+  /* ── ANALYTICS CHARTS ── */
+  .an-charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .an-chart-card {
+    background: var(--white);
+    border: 1px solid var(--stone-border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    box-shadow: 0 1px 4px rgba(8,12,30,0.04);
+  }
+
+  .an-chart-title {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 16px;
+  }
+
+  .an-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .an-bar-label {
+    font-size: 0.78rem;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 80px;
+    max-width: 110px;
+    flex-shrink: 0;
+  }
+
+  .an-bar-track {
+    flex: 1;
+    height: 12px;
+    background: var(--stone);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .an-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.4s ease;
+    background: var(--blue);
+  }
+
+  .an-bar-fill.ochre { background: var(--ochre); }
+  .an-bar-fill.green { background: var(--success); }
+
+  .an-bar-count {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    width: 24px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .an-dow-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    align-items: end;
+    height: 80px;
+  }
+
+  .an-dow-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    height: 100%;
+  }
+
+  .an-dow-bar {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    background: var(--blue);
+    transition: height 0.4s ease;
+    min-height: 2px;
+  }
+
+  .an-dow-label {
+    font-size: 0.64rem;
+    color: var(--ink-muted);
+    font-weight: 500;
+  }
+
+  .an-hour-grid {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 60px;
+    overflow-x: auto;
+  }
+
+  .an-hour-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 3px;
+    flex: 1;
+    min-width: 18px;
+    height: 100%;
+  }
+
+  .an-hour-bar {
+    width: 100%;
+    border-radius: 3px 3px 0 0;
+    background: var(--ochre);
+    transition: height 0.4s ease;
+    min-height: 2px;
+  }
+
+  .an-hour-label {
+    font-size: 0.55rem;
+    color: var(--ink-muted);
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    white-space: nowrap;
+  }
+
+  .an-empty {
+    color: var(--ink-muted);
+    font-size: 0.82rem;
+    text-align: center;
+    padding: 24px 0;
+    font-style: italic;
+  }
+
+  .an-table-wrap {
+    background: var(--white);
+    border: 1px solid var(--stone-border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(8,12,30,0.04);
+    margin-top: 16px;
+  }
+
+  @media (max-width: 860px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .an-charts-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .an-bar-label { max-width: 72px; min-width: 60px; }
   }
 
   /* ── SECTION HEADER ── */
@@ -315,6 +560,33 @@ const styles = `
 
   .btn-primary:hover { background: var(--blue-light); transform: translateY(-1px); }
 
+  .add-option-btn {
+    padding: 5px 11px;
+    background: transparent;
+    color: var(--blue);
+    border: 1px dashed var(--stone-border);
+    border-radius: 5px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .add-option-btn:hover { border-color: var(--blue); background: var(--ochre-dim); }
+
+  .add-option-remove {
+    background: none;
+    border: none;
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+    cursor: pointer;
+    padding: 0;
+    font-family: 'DM Sans', sans-serif;
+    transition: color 0.15s;
+  }
+
+  .add-option-remove:hover { color: var(--error); }
+
   .btn-danger {
     padding: 6px 12px;
     background: transparent;
@@ -348,8 +620,9 @@ const styles = `
   .table-wrap {
     background: var(--white);
     border: 1px solid var(--stone-border);
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
+    box-shadow: 0 1px 4px rgba(8,12,30,0.04);
   }
 
   table { width: 100%; border-collapse: collapse; }
@@ -448,6 +721,7 @@ const styles = `
 
   .form-field input:focus, .form-field select:focus {
     border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(26,48,112,0.08);
   }
 
   .modal-actions {
@@ -528,8 +802,9 @@ const styles = `
   .card {
     background: var(--white);
     border: 1px solid var(--stone-border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 28px;
+    box-shadow: 0 1px 4px rgba(8,12,30,0.04);
   }
 
   .card-title {
@@ -582,6 +857,677 @@ const styles = `
 
   .copy-btn:hover { background: var(--blue-light); }
   .copy-btn.ok { background: var(--success); }
+
+  /* ── CLOSURE CALENDAR ── */
+  .cl-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .cl-month-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--ink);
+    text-transform: capitalize;
+  }
+  .cl-nav-btn {
+    background: none;
+    border: 1px solid var(--stone-border);
+    border-radius: 5px;
+    cursor: pointer;
+    color: var(--ink-muted);
+    font-size: 1rem;
+    padding: 2px 10px;
+    line-height: 1.6;
+    transition: background 0.12s;
+  }
+  .cl-nav-btn:hover { background: var(--stone); }
+
+  .cl-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
+  .cl-weekday {
+    text-align: center;
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--ink-muted);
+    padding: 4px 0;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .cl-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cl-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.1s;
+    position: relative;
+    border: 1.5px solid transparent;
+    user-select: none;
+  }
+  .cl-day.cl-other-month { color: var(--stone-border); cursor: default; }
+  .cl-day.cl-struct-closed { color: var(--stone-border); background: var(--stone); cursor: default; }
+  .cl-day.cl-past { opacity: 0.4; cursor: default; }
+  .cl-day.cl-open { background: var(--white); }
+  .cl-day.cl-open:hover { border-color: var(--blue-light); background: rgba(26,48,112,0.04); }
+  .cl-day.cl-selected { border-color: var(--blue); background: rgba(26,48,112,0.08); font-weight: 600; }
+  .cl-day.cl-closed {
+    background: rgba(220,38,38,0.08);
+    color: var(--error);
+    font-weight: 600;
+  }
+  .cl-day.cl-closed:hover { background: rgba(220,38,38,0.14); }
+  .cl-day.cl-closed.cl-selected { border-color: var(--error); }
+  .cl-day.cl-today { font-weight: 700; }
+  .cl-day.cl-today.cl-open { color: var(--blue); }
+  .cl-closed-dot {
+    position: absolute;
+    bottom: 3px;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--error);
+  }
+
+  .cl-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    font-size: 0.74rem;
+    color: var(--ink-muted);
+  }
+  .cl-legend-item { display: flex; align-items: center; gap: 5px; }
+  .cl-legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .cl-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .cl-sel-count {
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    margin-right: auto;
+  }
+  .btn-close-day {
+    padding: 7px 14px;
+    background: rgba(220,38,38,0.08);
+    color: var(--error);
+    border: 1px solid rgba(220,38,38,0.3);
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.80rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.13s;
+  }
+  .btn-close-day:hover { background: rgba(220,38,38,0.15); }
+  .btn-reopen-day {
+    padding: 7px 14px;
+    background: rgba(21,128,61,0.07);
+    color: var(--success);
+    border: 1px solid rgba(21,128,61,0.25);
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.80rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.13s;
+  }
+  .btn-reopen-day:hover { background: rgba(21,128,61,0.14); }
+
+  /* ── BOOKING PREVIEW ── */
+  .preview-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0 4px;
+  }
+
+  .preview-desc {
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+    line-height: 1.5;
+    margin-bottom: 28px;
+    text-align: center;
+    max-width: 400px;
+  }
+
+  .preview-device {
+    background: var(--ink);
+    border-radius: 36px;
+    padding: 14px 10px;
+    box-shadow: 0 24px 64px rgba(8,12,30,0.32), 0 4px 16px rgba(8,12,30,0.18);
+    position: relative;
+  }
+
+  .preview-device::before {
+    content: '';
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 3px;
+  }
+
+  .preview-screen {
+    width: 300px;
+    height: 560px;
+    background: var(--stone);
+    border-radius: 26px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .preview-screen iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    transform-origin: top left;
+  }
+
+  .preview-open-btn {
+    margin-top: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    background: var(--stone);
+    border: 1px solid var(--stone-border);
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--blue);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+
+  .preview-open-btn:hover { background: var(--stone-border); }
+
+  /* ── SERVICE MODE (segmented control) ── */
+  .svc-seg {
+    display: flex;
+    border: 1.5px solid var(--stone-border);
+    border-radius: 7px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  .svc-seg-btn {
+    flex: 1;
+    padding: 7px 6px;
+    background: var(--white);
+    border: none;
+    border-right: 1px solid var(--stone-border);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.13s;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .svc-seg-btn:last-child { border-right: none; }
+
+  .svc-seg-btn:hover { background: var(--stone); color: var(--ink); }
+
+  .svc-seg-btn.active {
+    background: var(--blue);
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .svc-mode-desc {
+    font-size: 0.73rem;
+    color: var(--ink-muted);
+    margin-bottom: 12px;
+    padding: 6px 10px;
+    background: var(--stone);
+    border-radius: 5px;
+    line-height: 1.5;
+  }
+
+  /* ── EMP SERVICE PICKER ── */
+  .emp-svc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+    max-height: 140px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .emp-svc-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border: 1px solid var(--stone-border);
+    border-radius: 5px;
+    font-size: 0.80rem;
+    cursor: pointer;
+    background: var(--white);
+    transition: background 0.12s;
+  }
+
+  .emp-svc-item:hover { background: var(--stone); }
+
+  .emp-svc-item input[type="checkbox"] {
+    accent-color: var(--blue);
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  /* ── OVERVIEW SCHEDULE ── */
+  .ov-sched-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 28px 0 16px;
+  }
+
+  .ov-date-input {
+    padding: 7px 12px;
+    border: 1.5px solid var(--stone-border);
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.84rem;
+    color: var(--ink);
+    background: var(--white);
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .ov-date-input:focus { border-color: var(--blue); }
+
+  .ov-sched-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  @media (max-width: 760px) {
+    .ov-sched-grid { grid-template-columns: 1fr; }
+  }
+
+  .ov-sched-card {
+    background: var(--white);
+    border: 1px solid var(--stone-border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 4px rgba(8,12,30,0.04);
+  }
+
+  .ov-sched-card-title {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 12px;
+  }
+
+  .ov-hours-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ov-hours-row {
+    font-size: 0.88rem;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ov-hours-sep { color: var(--ink-muted); font-size: 0.78rem; }
+
+  .ov-closed {
+    font-size: 0.84rem;
+    color: var(--ink-muted);
+    font-style: italic;
+  }
+
+  .ov-emp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ov-emp-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--stone);
+    border-radius: 7px;
+  }
+
+  .ov-emp-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .ov-emp-name {
+    font-size: 0.86rem;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+
+  .ov-emp-shifts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 3px;
+  }
+
+  .ov-emp-shift {
+    font-size: 0.74rem;
+    color: var(--ink-muted);
+    background: var(--white);
+    border: 1px solid var(--stone-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+
+  /* ── SUBSCRIPTION ── */
+  .plans-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 8px;
+  }
+
+  .plan-card {
+    background: var(--white);
+    border: 1.5px solid var(--stone-border);
+    border-radius: 12px;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    box-shadow: 0 1px 4px rgba(8,12,30,0.04);
+    transition: box-shadow 0.18s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .plan-card:hover { box-shadow: 0 6px 24px rgba(8,12,30,0.09); }
+
+  .plan-card.plan-pro {
+    border-color: var(--blue);
+    background: linear-gradient(160deg, var(--blue) 0%, #1e3a8a 100%);
+    color: #fff;
+  }
+
+  .plan-card.plan-pro::before {
+    content: 'Recomendado';
+    position: absolute;
+    top: 26px;
+    right: -30px;
+    width: 130px;
+    text-align: center;
+    background: var(--ochre);
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 5px 0;
+    transform: rotate(45deg);
+  }
+
+  .plan-badge {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ochre);
+    margin-bottom: 10px;
+  }
+
+  .plan-card.plan-pro .plan-badge { color: rgba(201,151,58,0.85); }
+
+  .plan-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 4px;
+    line-height: 1.1;
+  }
+
+  .plan-card.plan-pro .plan-name { color: #fff; }
+
+  .plan-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.6rem;
+    font-weight: 600;
+    color: var(--blue);
+    line-height: 1;
+    margin: 12px 0 4px;
+  }
+
+  .plan-card.plan-pro .plan-price { color: #fff; }
+
+  .plan-price-sub {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    margin-bottom: 20px;
+  }
+
+  .plan-card.plan-pro .plan-price-sub { color: rgba(255,255,255,0.55); }
+
+  .plan-divider {
+    height: 1px;
+    background: var(--stone-border);
+    margin: 16px 0;
+  }
+
+  .plan-card.plan-pro .plan-divider { background: rgba(255,255,255,0.12); }
+
+  .plan-features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    flex: 1;
+    margin-bottom: 24px;
+  }
+
+  .plan-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+    line-height: 1.4;
+  }
+
+  .plan-card.plan-pro .plan-feature { color: rgba(255,255,255,0.8); }
+
+  .plan-feature-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #d1fae5;
+    color: #065f46;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .plan-card.plan-pro .plan-feature-icon {
+    background: rgba(201,151,58,0.25);
+    color: var(--ochre);
+  }
+
+  .plan-cta {
+    width: 100%;
+    padding: 11px;
+    border-radius: 7px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.86rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+    border: none;
+  }
+
+  .plan-cta-free {
+    background: var(--stone);
+    border: 1.5px solid var(--stone-border);
+    color: var(--blue);
+  }
+
+  .plan-cta-free:hover { background: var(--stone-border); }
+
+  .plan-cta-pro {
+    background: var(--ochre);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 14px rgba(201,151,58,0.35);
+  }
+
+  .plan-cta-pro:hover { background: #b8862f; }
+
+  @media (max-width: 640px) {
+    .plans-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── SPLIT SHIFT HOURS ── */
+  .sh-day-block {
+    background: var(--white);
+    border: 1px solid var(--stone-border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(8,12,30,0.03);
+  }
+
+  .sh-day-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0;
+  }
+
+  .sh-day-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink);
+    min-width: 100px;
+  }
+
+  .sh-no-shifts {
+    font-size: 0.76rem;
+    color: var(--ink-muted);
+    font-style: italic;
+  }
+
+  .sh-shifts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--stone-border);
+  }
+
+  .sh-shift-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .sh-time {
+    padding: 7px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.84rem;
+    color: var(--ink);
+    background: var(--stone);
+    border: 1.5px solid var(--stone-border);
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 108px;
+  }
+
+  .sh-time:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,48,112,0.08); }
+
+  .sh-sep { font-size: 0.8rem; color: var(--ink-muted); }
+
+  .sh-add-btn {
+    padding: 5px 12px;
+    background: none;
+    border: 1.5px dashed var(--stone-border);
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.76rem;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+
+  .sh-add-btn:hover { border-color: var(--blue); color: var(--blue); background: rgba(26,48,112,0.04); }
+
+  .sh-del-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid rgba(220,38,38,0.2);
+    background: transparent;
+    color: var(--error);
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+    flex-shrink: 0;
+  }
+
+  .sh-del-btn:hover { background: #fef2f2; border-color: var(--error); }
 
   /* ── BOOKING CALENDAR ── */
   .bookings-layout { display: grid; grid-template-columns: 264px 1fr; gap: 20px; align-items: start; }
@@ -745,6 +1691,90 @@ const styles = `
     cursor: pointer;
   }
 
+  /* ── BUSINESS HOURS LIST ── */
+  .bh-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .bh-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--stone);
+    border: 1.5px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .bh-item.bh-open {
+    background: var(--white);
+    border-color: var(--stone-border);
+  }
+
+  .bh-day {
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--ink);
+    min-width: 84px;
+    flex-shrink: 0;
+  }
+
+  .bh-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    user-select: none;
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+  }
+
+  .bh-toggle input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--blue);
+    margin: 0;
+    padding: 0;
+  }
+
+  .bh-times {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .bh-sep {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    flex-shrink: 0;
+  }
+
+  .bh-time {
+    padding: 7px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.84rem;
+    color: var(--ink);
+    background: var(--white);
+    border: 1.5px solid var(--stone-border);
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+    width: 110px;
+  }
+
+  .bh-time:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,48,112,0.08); }
+  .bh-time:disabled { opacity: 0.35; background: var(--stone); cursor: not-allowed; }
+
+  .bh-closed {
+    margin-left: auto;
+    font-size: 0.74rem;
+    color: var(--ink-muted);
+    font-style: italic;
+    letter-spacing: 0.02em;
+  }
+
   /* ── SIDEBAR COMPANY NAME ── */
   .sidebar-company {
     font-size: 0.84rem;
@@ -790,20 +1820,16 @@ const styles = `
 
   /* ── RESPONSIVE ── */
   @media (max-width: 960px) {
-    .dash { grid-template-columns: 1fr; }
+    .main { margin-left: 0; }
 
     .sidebar {
-      position: fixed;
-      left: calc(-1 * var(--sidebar-w) - 4px);
-      top: 0;
-      bottom: 0;
-      z-index: 50;
-      transition: left 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateX(calc(-1 * var(--sidebar-w) - 4px));
+      transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: none;
     }
 
     .sidebar.open {
-      left: 0;
+      transform: translateX(0);
       box-shadow: 6px 0 32px rgba(8,12,30,0.22);
     }
 
@@ -814,13 +1840,26 @@ const styles = `
     .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
     .profile-grid { grid-template-columns: 1fr; }
     .bookings-layout { grid-template-columns: 1fr; }
+
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { min-width: 540px; }
+    .table-wrap::-webkit-scrollbar { height: 5px; }
+    .table-wrap::-webkit-scrollbar-track { background: var(--stone); }
+    .table-wrap::-webkit-scrollbar-thumb { background: var(--stone-border); border-radius: 3px; }
+    .table-wrap > table { min-width: 540px; }
+
+    .bh-item { flex-wrap: wrap; gap: 10px; }
+    .bh-times { margin-left: 0; }
+  }
+
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .profile-grid { grid-template-columns: 1fr; }
+    .bookings-layout { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 520px) {
     .stats-grid { grid-template-columns: 1fr; }
-    .two-col { grid-template-columns: 1fr; }
     .three-col { grid-template-columns: 1fr 1fr; }
     .content { padding: 16px 12px; }
     .topbar { padding: 0 12px; height: 52px; }
@@ -831,12 +1870,16 @@ const styles = `
       margin: 0 10px;
       max-width: calc(100vw - 20px) !important;
       border-radius: 10px;
+      max-height: 90vh;
+      overflow-y: auto;
     }
     .slot-grid { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
     .wizard-steps { gap: 0; }
     .step-label { display: none; }
     .section-title { font-size: 1.3rem; }
-    table { min-width: 480px; }
+    .table-wrap > table { min-width: 480px; }
+    .bh-time { width: 95px; }
+    .bh-day { min-width: 72px; }
   }
 `;
 
@@ -914,6 +1957,7 @@ export default function DashboardPage() {
     { id: "employees", label: "Empleados" },
     { id: "hours", label: "Horarios" },
     { id: "bookings", label: "Reservas" },
+    { id: "suscripcion", label: "Suscripción" },
   ];
 
   const TITLES = {
@@ -923,6 +1967,7 @@ export default function DashboardPage() {
     employees: "Empleados",
     hours: "Horarios",
     bookings: "Reservas",
+    suscripcion: "Suscripción",
   };
 
   return (
@@ -988,6 +2033,7 @@ export default function DashboardPage() {
             {section === "employees" && <Employees />}
             {section === "hours" && <Hours />}
             {section === "bookings" && <Bookings />}
+            {section === "suscripcion" && <Subscription />}
           </div>
         </div>
       </div>
@@ -995,77 +2041,342 @@ export default function DashboardPage() {
   );
 }
 
-/* ── OVERVIEW ── */
+/* ── OVERVIEW / RESUMEN ── */
+
+// Helpers de fecha
+const todayDate = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+
+const DOW_ES_SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+// Calcula el rango de fechas para cada preset.
+function computePeriod(preset, customFrom, customTo) {
+  const today = todayDate();
+  const d = (y, m, day) => { const x = new Date(y, m, day); x.setHours(0,0,0,0); return x; };
+  switch (preset) {
+    case "today": return { from: today, to: today };
+    case "week": {
+      const mon = new Date(today); mon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      return { from: mon, to: sun };
+    }
+    case "month": return { from: d(today.getFullYear(), today.getMonth(), 1), to: d(today.getFullYear(), today.getMonth() + 1, 0) };
+    case "7d":  { const f = new Date(today); f.setDate(today.getDate() - 6);  return { from: f, to: today }; }
+    case "30d": { const f = new Date(today); f.setDate(today.getDate() - 29); return { from: f, to: today }; }
+    case "3m":  { const f = new Date(today); f.setMonth(today.getMonth() - 3); return { from: f, to: today }; }
+    case "year": { return { from: d(today.getFullYear(), 0, 1), to: d(today.getFullYear(), 11, 31) }; }
+    case "custom": {
+      if (customFrom && customTo) {
+        const f = new Date(customFrom + "T00:00:00"); f.setHours(0,0,0,0);
+        const t = new Date(customTo + "T00:00:00"); t.setHours(0,0,0,0);
+        return { from: f, to: t };
+      }
+      return { from: today, to: today };
+    }
+    default: { const f = new Date(today); f.setDate(today.getDate() - 29); return { from: f, to: today }; }
+  }
+}
+
+function prevPeriod(from, to) {
+  const days = Math.round((to - from) / 86400000) + 1;
+  const pTo = new Date(from); pTo.setDate(pTo.getDate() - 1);
+  const pFrom = new Date(pTo); pFrom.setDate(pFrom.getDate() - days + 1);
+  return { from: pFrom, to: pTo };
+}
+
+function filterByRange(bookings, from, to) {
+  return bookings.filter((b) => {
+    const bd = new Date(b.date + "T00:00:00");
+    return bd >= from && bd <= to;
+  });
+}
+
+function fmtPeriodLabel(preset, from, to) {
+  const fmt = (d) => d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+  if (preset === "today") return `Hoy, ${fmt(from)}`;
+  if (preset === "week")  return `Semana del ${fmt(from)} al ${fmt(to)}`;
+  if (preset === "month") return from.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  if (preset === "7d")    return `Últimos 7 días`;
+  if (preset === "30d")   return `Últimos 30 días`;
+  if (preset === "3m")    return `Últimos 3 meses`;
+  if (preset === "year")  return `Año ${from.getFullYear()}`;
+  return `${fmt(from)} – ${fmt(to)}`;
+}
+
+function delta(curr, prev) {
+  if (prev === 0 && curr === 0) return null;
+  if (prev === 0) return null;
+  return Math.round(((curr - prev) / prev) * 100);
+}
+
+function DeltaBadge({ curr, prev }) {
+  const pct = delta(curr, prev);
+  if (pct === null) return null;
+  const cls = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+  const arrow = pct > 0 ? "↑" : pct < 0 ? "↓" : "→";
+  return <div className={`stat-delta ${cls}`}>{arrow} {Math.abs(pct)}% vs período anterior</div>;
+}
+
+function HBar({ label, count, max, color = "" }) {
+  const pct = max > 0 ? Math.round((count / max) * 100) : 0;
+  return (
+    <div className="an-bar-row">
+      <span className="an-bar-label" title={label}>{label}</span>
+      <div className="an-bar-track">
+        <div className={`an-bar-fill ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="an-bar-count">{count}</span>
+    </div>
+  );
+}
+
+const PRESETS = [
+  { id: "today", label: "Hoy" },
+  { id: "week",  label: "Esta semana" },
+  { id: "month", label: "Este mes" },
+  { id: "7d",    label: "7 días" },
+  { id: "30d",   label: "30 días" },
+  { id: "3m",    label: "3 meses" },
+  { id: "year",  label: "Este año" },
+  { id: "custom",label: "Personalizado" },
+];
+
 function Overview({ setSection }) {
-  const [services, setServices] = useState([]);
+  const [bookings,  setBookings]  = useState([]);
+  const [services,  setServices]  = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [bookings, setBookings] = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [preset,    setPreset]    = useState("30d");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo,   setCustomTo]   = useState("");
 
   useEffect(() => {
-    api("/api/services")
-      .then(setServices)
-      .catch(() => {});
-    api("/api/employees")
-      .then(setEmployees)
-      .catch(() => {});
-    api("/api/bookings")
-      .then(setBookings)
-      .catch(() => {});
+    Promise.all([
+      api("/api/bookings"),
+      api("/api/services"),
+      api("/api/employees"),
+    ]).then(([b, s, e]) => {
+      setBookings(b);
+      setServices(s);
+      setEmployees(e);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const pending = bookings.filter((b) => b.status === "PENDING").length;
+  const { from, to } = computePeriod(preset, customFrom, customTo);
+  const { from: pFrom, to: pTo } = prevPeriod(from, to);
+
+  const curr = filterByRange(bookings, from, to);
+  const prev = filterByRange(bookings, pFrom, pTo);
+
+  // KPIs
+  const total      = curr.length;
+  const confirmed  = curr.filter((b) => b.status === "CONFIRMED").length;
+  const pending    = curr.filter((b) => b.status === "PENDING").length;
+  const cancelled  = curr.filter((b) => b.status === "CANCELLED").length;
+  const cancelRate = total > 0 ? Math.round((cancelled / total) * 100) : 0;
+  const unique     = new Set(curr.map((b) => b.customerEmail || b.customerName)).size;
+  const daySpan    = Math.max(1, Math.round((to - from) / 86400000) + 1);
+  const avgPerDay  = (total / daySpan).toFixed(1);
+
+  // Service map / employee map
+  const svcMap = Object.fromEntries(services.map((s) => [s.id, s.name]));
+  const empMap = Object.fromEntries(employees.map((e) => [e.id, e.name]));
+
+  // By service
+  const bySvc = {};
+  curr.filter((b) => b.status !== "CANCELLED").forEach((b) => {
+    const name = svcMap[b.serviceId] || `Servicio ${b.serviceId}`;
+    bySvc[name] = (bySvc[name] || 0) + 1;
+  });
+  const svcRanked = Object.entries(bySvc).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  // By employee
+  const byEmp = {};
+  curr.filter((b) => b.status !== "CANCELLED").forEach((b) => {
+    const name = empMap[b.employeeId] || `Empleado ${b.employeeId}`;
+    byEmp[name] = (byEmp[name] || 0) + 1;
+  });
+  const empRanked = Object.entries(byEmp).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  // By day of week (Mon=0..Sun=6)
+  const byDow = [0, 0, 0, 0, 0, 0, 0];
+  curr.filter((b) => b.status !== "CANCELLED").forEach((b) => {
+    const dow = (new Date(b.date + "T00:00:00").getDay() + 6) % 7;
+    byDow[dow]++;
+  });
+  const maxDow = Math.max(...byDow, 1);
+
+  // By hour (07–21)
+  const HOURS = Array.from({ length: 16 }, (_, i) => String(i + 7).padStart(2, "0"));
+  const byHour = {};
+  HOURS.forEach((h) => (byHour[h] = 0));
+  curr.filter((b) => b.status !== "CANCELLED").forEach((b) => {
+    const h = b.startTime?.slice(0, 2);
+    if (h && byHour[h] !== undefined) byHour[h]++;
+  });
+  const maxHour = Math.max(...Object.values(byHour), 1);
+
+  // Peak hour
+  const peakHour = Object.entries(byHour).sort((a, b) => b[1] - a[1])[0];
+  // Peak day
+  const peakDow = byDow.indexOf(Math.max(...byDow));
+
+  const periodLabel = fmtPeriodLabel(preset, from, to);
+  const maxSvc = svcRanked[0]?.[1] || 1;
+  const maxEmp = empRanked[0]?.[1] || 1;
+
+  if (loading) return <div className="empty">Cargando…</div>;
 
   return (
     <>
+      {/* Period picker */}
+      <div className="an-period">
+        <div className="an-seg">
+          {PRESETS.map((p) => (
+            <button
+              key={p.id}
+              className={`an-seg-btn${preset === p.id ? " active" : ""}`}
+              onClick={() => setPreset(p.id)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {preset === "custom" && (
+          <div className="an-range-inputs">
+            <input type="date" className="an-date-input" value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)} />
+            <span style={{ color: "var(--ink-muted)", fontSize: "0.8rem" }}>–</span>
+            <input type="date" className="an-date-input" value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)} />
+          </div>
+        )}
+        <span className="an-period-label">{periodLabel}</span>
+      </div>
+
+      {/* KPI cards */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-label">Servicios activos</div>
-          <div className="stat-value">
-            {services.filter((s) => s.active).length}
-          </div>
+          <div className="stat-label">Total reservas</div>
+          <div className="stat-value">{total}</div>
+          <DeltaBadge curr={total} prev={prev.length} />
         </div>
         <div className="stat-card">
-          <div className="stat-label">Empleados</div>
-          <div className="stat-value">
-            {employees.filter((e) => e.active).length}
-          </div>
+          <div className="stat-label">Confirmadas</div>
+          <div className="stat-value">{confirmed}</div>
+          <div className="stat-sub">{total > 0 ? Math.round(confirmed/total*100) : 0}% del total</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Reservas pendientes</div>
-          <div className="stat-value">{pending}</div>
+          <div className="stat-label">Canceladas</div>
+          <div className="stat-value">{cancelled}</div>
+          <div className="stat-sub">{cancelRate}% tasa de cancelación</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Clientes únicos</div>
+          <div className="stat-value">{unique}</div>
+          <DeltaBadge curr={unique} prev={new Set(prev.map((b) => b.customerEmail || b.customerName)).size} />
         </div>
       </div>
 
-      <div className="section-header">
-        <div className="section-title">Últimas reservas</div>
-        <button className="btn-sm" onClick={() => setSection("bookings")}>
-          Ver todas
-        </button>
+      <div className="stats-grid" style={{ marginBottom: 20 }}>
+        <div className="stat-card">
+          <div className="stat-label">Media / día</div>
+          <div className="stat-value" style={{ fontSize: "1.9rem" }}>{avgPerDay}</div>
+          <div className="stat-sub">{daySpan} días en el período</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Pendientes</div>
+          <div className="stat-value">{pending}</div>
+          <div className="stat-sub">Sin confirmar</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Hora punta</div>
+          <div className="stat-value" style={{ fontSize: "1.9rem" }}>{peakHour?.[1] > 0 ? `${peakHour[0]}h` : "—"}</div>
+          <div className="stat-sub">{peakHour?.[1] > 0 ? `${peakHour[1]} reservas` : "Sin datos"}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Día más activo</div>
+          <div className="stat-value" style={{ fontSize: "1.7rem" }}>{Math.max(...byDow) > 0 ? DOW_ES_SHORT[peakDow] : "—"}</div>
+          <div className="stat-sub">{Math.max(...byDow) > 0 ? `${byDow[peakDow]} reservas` : "Sin datos"}</div>
+        </div>
       </div>
-      <div className="table-wrap">
-        {bookings.length === 0 ? (
-          <div className="empty">No hay reservas aún.</div>
+
+      {/* Charts */}
+      <div className="an-charts-row">
+        <div className="an-chart-card">
+          <div className="an-chart-title">Por servicio</div>
+          {svcRanked.length === 0
+            ? <div className="an-empty">Sin reservas en este período</div>
+            : svcRanked.map(([name, count]) => <HBar key={name} label={name} count={count} max={maxSvc} />)
+          }
+        </div>
+        <div className="an-chart-card">
+          <div className="an-chart-title">Por empleado</div>
+          {empRanked.length === 0
+            ? <div className="an-empty">Sin reservas en este período</div>
+            : empRanked.map(([name, count]) => <HBar key={name} label={name} count={count} max={maxEmp} color="ochre" />)
+          }
+        </div>
+      </div>
+
+      <div className="an-charts-row">
+        <div className="an-chart-card">
+          <div className="an-chart-title">Por día de la semana</div>
+          <div className="an-dow-grid">
+            {DOW_ES_SHORT.map((label, i) => (
+              <div key={i} className="an-dow-col">
+                <div className="an-dow-bar" style={{ height: `${Math.round((byDow[i] / maxDow) * 60)}px` }} />
+                <span className="an-dow-label">{label}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+            {byDow.map((n, i) => (
+              <span key={i} style={{ flex: 1, textAlign: "center", fontSize: "0.64rem", color: "var(--ink-muted)" }}>{n}</span>
+            ))}
+          </div>
+        </div>
+        <div className="an-chart-card">
+          <div className="an-chart-title">Por franja horaria</div>
+          <div className="an-hour-grid">
+            {HOURS.map((h) => (
+              <div key={h} className="an-hour-col">
+                <div className="an-hour-bar" style={{ height: `${Math.round((byHour[h] / maxHour) * 48)}px` }} />
+                <span className="an-hour-label">{h}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Booking table */}
+      <div className="section-header" style={{ marginTop: 8 }}>
+        <div className="section-title">Reservas del período</div>
+        <button className="btn-sm" onClick={() => setSection("bookings")}>Ver gestión →</button>
+      </div>
+      <div className="an-table-wrap">
+        {curr.length === 0 ? (
+          <div className="empty">No hay reservas en este período.</div>
         ) : (
-          <table>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <th>Cliente</th>
                 <th>Fecha</th>
                 <th>Hora</th>
+                <th>Servicio</th>
+                <th>Empleado</th>
                 <th>Estado</th>
               </tr>
             </thead>
             <tbody>
-              {bookings.slice(0, 5).map((b) => (
+              {curr.sort((a, b) => b.date.localeCompare(a.date) || b.startTime?.localeCompare(a.startTime)).slice(0, 50).map((b) => (
                 <tr key={b.id}>
                   <td>{b.customerName}</td>
                   <td>{b.date}</td>
                   <td>{b.startTime?.slice(0, 5)}</td>
-                  <td>
-                    <span className={`badge badge-${b.status.toLowerCase()}`}>
-                      {b.status}
-                    </span>
-                  </td>
+                  <td style={{ color: "var(--ink-muted)", fontSize: "0.82rem" }}>{svcMap[b.serviceId] || "—"}</td>
+                  <td style={{ color: "var(--ink-muted)", fontSize: "0.82rem" }}>{empMap[b.employeeId] || "—"}</td>
+                  <td><span className={`badge badge-${b.status.toLowerCase()}`}>{b.status}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -1073,6 +2384,139 @@ function Overview({ setSection }) {
         )}
       </div>
     </>
+  );
+}
+
+/* ── CLOSURE CALENDAR COMPONENT ── */
+const CL_WEEKDAYS_ES = ["L", "M", "X", "J", "V", "S", "D"];
+const toDateKey = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayKey = toDateKey(new Date());
+
+function ClosureCalendar({
+  closures, setClosures,
+  clViewDate, setClViewDate,
+  clSelected, setClSelected,
+  clMsg, setClMsg,
+  businessDaysOfWeek,
+}) {
+  const year = clViewDate.getFullYear();
+  const month = clViewDate.getMonth();
+  const monthLabel = new Date(year, month, 1).toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7; // Monday-first
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const prevMonthDays = new Date(year, month, 0).getDate();
+
+  const cells = [];
+  for (let i = startOffset - 1; i >= 0; i--)
+    cells.push({ date: new Date(year, month - 1, prevMonthDays - i), otherMonth: true });
+  for (let d = 1; d <= daysInMonth; d++)
+    cells.push({ date: new Date(year, month, d), otherMonth: false });
+  const remainder = cells.length % 7;
+  if (remainder > 0)
+    for (let d = 1; d <= 7 - remainder; d++)
+      cells.push({ date: new Date(year, month + 1, d), otherMonth: true });
+
+  const prevMonth = () => setClViewDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setClViewDate(new Date(year, month + 1, 1));
+
+  const toggleSelect = (key, isPast, isStructClosed, isOtherMonth) => {
+    if (isPast || isStructClosed || isOtherMonth) return;
+    setClSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const markClosed = async () => {
+    const dates = [...clSelected];
+    try {
+      await api("/api/tenant/closures", { method: "POST", body: JSON.stringify(dates) });
+      setClosures((prev) => { const next = new Set(prev); dates.forEach((d) => next.add(d)); return next; });
+      setClSelected(new Set());
+      setClMsg({ type: "ok", text: `${dates.length} día(s) marcado(s) como cerrado.` });
+    } catch { setClMsg({ type: "err", text: "Error al guardar los cierres." }); }
+  };
+
+  const reopen = async () => {
+    const dates = [...clSelected];
+    try {
+      await api("/api/tenant/closures", { method: "DELETE", body: JSON.stringify(dates) });
+      setClosures((prev) => { const next = new Set(prev); dates.forEach((d) => next.delete(d)); return next; });
+      setClSelected(new Set());
+      setClMsg({ type: "ok", text: `${dates.length} día(s) reabierto(s).` });
+    } catch { setClMsg({ type: "err", text: "Error al reabrir los días." }); }
+  };
+
+  const selHasClosed = [...clSelected].some((k) => closures.has(k));
+  const selHasOpen   = [...clSelected].some((k) => !closures.has(k));
+
+  return (
+    <div className="card" style={{ marginTop: "20px" }}>
+      <div className="card-title">Calendario de cierres excepcionales</div>
+      <p style={{ fontSize: "0.82rem", color: "var(--ink-muted)", marginBottom: "18px", lineHeight: 1.5 }}>
+        Marca días concretos como cerrados por festivos, vacaciones u otros imprevistos. Los clientes no podrán reservar esos días aunque el negocio tenga horario ese día de la semana.
+      </p>
+      {clMsg && <div className={`alert ${clMsg.type}`} style={{ marginBottom: "14px" }}>{clMsg.text}</div>}
+
+      <div className="cl-nav">
+        <button className="cl-nav-btn" onClick={prevMonth}>‹</button>
+        <span className="cl-month-label">{monthLabel}</span>
+        <button className="cl-nav-btn" onClick={nextMonth}>›</button>
+      </div>
+
+      <div className="cl-weekdays">
+        {CL_WEEKDAYS_ES.map((d) => <div key={d} className="cl-weekday">{d}</div>)}
+      </div>
+
+      <div className="cl-grid">
+        {cells.map((cell, i) => {
+          const key = toDateKey(cell.date);
+          const jsDay = cell.date.getDay();
+          const isStructClosed = !cell.otherMonth && !businessDaysOfWeek.has(jsDay);
+          const isClosed = closures.has(key);
+          const isSelected = clSelected.has(key);
+          const isPast = !cell.otherMonth && key < todayKey;
+          const isToday = key === todayKey;
+
+          let cls = "cl-day";
+          if (cell.otherMonth)       cls += " cl-other-month";
+          else if (isPast)           cls += " cl-past cl-struct-closed";
+          else if (isStructClosed)   cls += " cl-struct-closed";
+          else if (isClosed)         cls += " cl-closed" + (isSelected ? " cl-selected" : "");
+          else                       cls += " cl-open"   + (isSelected ? " cl-selected" : "");
+          if (isToday && !cell.otherMonth) cls += " cl-today";
+
+          return (
+            <div key={i} className={cls}
+              onClick={() => toggleSelect(key, isPast, isStructClosed, cell.otherMonth)}
+              title={isStructClosed && !cell.otherMonth ? "Día sin horario configurado" : undefined}
+            >
+              {cell.date.getDate()}
+              {isClosed && !cell.otherMonth && <span className="cl-closed-dot" />}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="cl-legend">
+        <span className="cl-legend-item"><span className="cl-legend-dot" style={{ background: "var(--white)", border: "1.5px solid var(--stone-border)" }} />Abierto</span>
+        <span className="cl-legend-item"><span className="cl-legend-dot" style={{ background: "rgba(220,38,38,0.12)", border: "1.5px solid rgba(220,38,38,0.3)" }} />Cerrado (excepción)</span>
+        <span className="cl-legend-item"><span className="cl-legend-dot" style={{ background: "var(--stone)" }} />Sin horario ese día</span>
+      </div>
+
+      {clSelected.size > 0 && (
+        <div className="cl-actions">
+          <span className="cl-sel-count">{clSelected.size} día(s) seleccionado(s)</span>
+          {selHasOpen   && <button className="btn-close-day"  onClick={markClosed}>Marcar como cerrado</button>}
+          {selHasClosed && <button className="btn-reopen-day" onClick={reopen}>Reabrir</button>}
+          <button className="btn-sm" onClick={() => setClSelected(new Set())}>Cancelar selección</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1084,18 +2528,18 @@ function Empresa() {
     email: "",
     phone: "",
     address: "",
+    maxCapacity: "",
   });
   const [msg, setMsg] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [bh, setBh] = useState(
-    DAYS.map((d) => ({
-      dayOfWeek: d,
-      startTime: "",
-      endTime: "",
-      enabled: false,
-    })),
-  );
+  const [bhByDay, setBhByDay] = useState(() => Object.fromEntries(DAYS.map((d) => [d, []])));
   const [bhMsg, setBhMsg] = useState(null);
+  // Closure calendar state
+  const [closures, setClosures] = useState(new Set()); // Set of "YYYY-MM-DD" strings
+  const [clViewDate, setClViewDate] = useState(() => new Date());
+  const [clSelected, setClSelected] = useState(new Set()); // selected day strings
+  const [clMsg, setClMsg] = useState(null);
+  const [businessDaysOfWeek, setBusinessDaysOfWeek] = useState(new Set()); // JS getDay() values
 
   useEffect(() => {
     api("/api/tenant")
@@ -1106,29 +2550,32 @@ function Empresa() {
           email: data.email,
           phone: data.phone || "",
           address: data.address || "",
+          maxCapacity: data.maxCapacity != null ? String(data.maxCapacity) : "",
         });
       })
       .catch(() => {});
 
     api("/api/tenant/hours")
       .then((data) => {
-        const map = {};
+        const map = Object.fromEntries(DAYS.map((d) => [d, []]));
+        // Días de la semana (JS getDay()) en que el negocio tiene horario.
+        const DOW_MAP = { MONDAY:1,TUESDAY:2,WEDNESDAY:3,THURSDAY:4,FRIDAY:5,SATURDAY:6,SUNDAY:0 };
+        const openJs = new Set();
         data.forEach((h) => {
-          map[h.dayOfWeek] = h;
+          if (!map[h.dayOfWeek]) map[h.dayOfWeek] = [];
+          map[h.dayOfWeek].push({
+            startTime: h.startTime?.slice(0, 5) || "",
+            endTime: h.endTime?.slice(0, 5) || "",
+          });
+          if (DOW_MAP[h.dayOfWeek] !== undefined) openJs.add(DOW_MAP[h.dayOfWeek]);
         });
-        setBh(
-          DAYS.map((d) =>
-            map[d]
-              ? {
-                  dayOfWeek: d,
-                  startTime: map[d].startTime?.slice(0, 5) || "",
-                  endTime: map[d].endTime?.slice(0, 5) || "",
-                  enabled: true,
-                }
-              : { dayOfWeek: d, startTime: "", endTime: "", enabled: false },
-          ),
-        );
+        setBhByDay(map);
+        setBusinessDaysOfWeek(openJs);
       })
+      .catch(() => {});
+
+    api("/api/tenant/closures")
+      .then((dates) => setClosures(new Set(dates)))
       .catch(() => {});
   }, []);
 
@@ -1137,7 +2584,10 @@ function Empresa() {
     try {
       const updated = await api("/api/tenant", {
         method: "PUT",
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          maxCapacity: form.maxCapacity !== "" ? Number(form.maxCapacity) : null,
+        }),
       });
       setTenant(updated);
       localStorage.setItem("tenantName", updated.name);
@@ -1148,13 +2598,14 @@ function Empresa() {
   };
 
   const saveBusinessHours = async () => {
-    const payload = bh
-      .filter((h) => h.enabled && h.startTime && h.endTime)
-      .map(({ dayOfWeek, startTime, endTime }) => ({
-        dayOfWeek,
-        startTime,
-        endTime,
-      }));
+    const pad = (t) => (t && t.length === 5 ? t + ":00" : t || "");
+    const payload = [];
+    DAYS.forEach((day) => {
+      (bhByDay[day] || []).forEach((b) => {
+        if (b.startTime && b.endTime)
+          payload.push({ dayOfWeek: day, startTime: pad(b.startTime), endTime: pad(b.endTime) });
+      });
+    });
     try {
       await api("/api/tenant/hours", {
         method: "PUT",
@@ -1166,14 +2617,17 @@ function Empresa() {
     }
   };
 
-  const toggleDay = (i) =>
-    setBh((h) =>
-      h.map((d, j) => (j === i ? { ...d, enabled: !d.enabled } : d)),
-    );
-  const updateDay = (i, k, v) =>
-    setBh((h) => h.map((d, j) => (j === i ? { ...d, [k]: v } : d)));
+  const addBhBlock = (day) =>
+    setBhByDay((p) => ({ ...p, [day]: [...p[day], { startTime: "", endTime: "" }] }));
+  const removeBhBlock = (day, idx) =>
+    setBhByDay((p) => ({ ...p, [day]: p[day].filter((_, i) => i !== idx) }));
+  const updateBhBlock = (day, idx, key, val) =>
+    setBhByDay((p) => ({
+      ...p,
+      [day]: p[day].map((b, i) => (i === idx ? { ...b, [key]: val } : b)),
+    }));
 
-  const bookingUrl = tenant ? `${API}/${tenant.slug}/booking` : "";
+  const bookingUrl = tenant ? `${window.location.origin}/booking/${tenant.slug}` : "";
   const copyUrl = () => {
     navigator.clipboard.writeText(bookingUrl);
     setCopied(true);
@@ -1230,6 +2684,21 @@ function Empresa() {
                 }
               />
             </div>
+            <div className="form-field">
+              <label>Aforo máximo simultáneo (opcional)</label>
+              <input
+                type="number"
+                min="1"
+                placeholder="Sin límite"
+                value={form.maxCapacity}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, maxCapacity: e.target.value }))
+                }
+              />
+              <p style={{ fontSize: "0.73rem", color: "var(--ink-muted)", marginTop: "4px", lineHeight: 1.5 }}>
+                Número máximo de personas que pueden estar siendo atendidas al mismo tiempo en el local. Deja vacío si no quieres limitarlo.
+              </p>
+            </div>
             <div style={{ marginTop: "20px" }}>
               <button type="submit" className="btn-primary">
                 Guardar cambios
@@ -1271,87 +2740,42 @@ function Empresa() {
         </div>
       </div>
 
+
       <div className="card" style={{ marginTop: "20px" }}>
         <div className="card-title">Horario del negocio</div>
         {bhMsg && (
-          <div
-            className={`alert ${bhMsg.type}`}
-            style={{ marginBottom: "16px" }}
-          >
+          <div className={`alert ${bhMsg.type}`} style={{ marginBottom: "16px" }}>
             {bhMsg.text}
           </div>
         )}
-        <p
-          style={{
-            fontSize: "0.82rem",
-            color: "var(--ink-muted)",
-            marginBottom: "18px",
-            lineHeight: 1.5,
-          }}
-        >
-          Define el horario general de apertura. Los horarios individuales de
-          cada profesional determinan la disponibilidad real de reservas.
+        <p style={{ fontSize: "0.82rem", color: "var(--ink-muted)", marginBottom: "18px", lineHeight: 1.5 }}>
+          Define el horario general de apertura. Puedes añadir jornadas partidas con varios bloques por día.
         </p>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Día</th>
-                <th>Abierto</th>
-                <th>Apertura</th>
-                <th>Cierre</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bh.map((h, i) => (
-                <tr key={h.dayOfWeek}>
-                  <td>
-                    <strong>{DAY_ES[h.dayOfWeek]}</strong>
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={h.enabled}
-                      onChange={() => toggleDay(i)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="time"
-                      value={h.startTime}
-                      disabled={!h.enabled}
-                      onChange={(e) =>
-                        updateDay(i, "startTime", e.target.value)
-                      }
-                      style={{
-                        border: "1px solid var(--stone-border)",
-                        borderRadius: "5px",
-                        padding: "4px 8px",
-                        fontSize: "0.84rem",
-                        opacity: h.enabled ? 1 : 0.4,
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="time"
-                      value={h.endTime}
-                      disabled={!h.enabled}
-                      onChange={(e) => updateDay(i, "endTime", e.target.value)}
-                      style={{
-                        border: "1px solid var(--stone-border)",
-                        borderRadius: "5px",
-                        padding: "4px 8px",
-                        fontSize: "0.84rem",
-                        opacity: h.enabled ? 1 : 0.4,
-                      }}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {DAYS.map((day) => (
+          <div key={day} className="sh-day-block">
+            <div className="sh-day-header">
+              <span className="sh-day-name">{DAY_ES[day]}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                {bhByDay[day].length === 0 && <span className="sh-no-shifts">Cerrado</span>}
+                <button className="sh-add-btn" onClick={() => addBhBlock(day)}>+ Añadir franja</button>
+              </div>
+            </div>
+            {bhByDay[day].length > 0 && (
+              <div className="sh-shifts-list">
+                {bhByDay[day].map((block, idx) => (
+                  <div key={idx} className="sh-shift-row">
+                    <input className="sh-time" type="time" value={block.startTime}
+                      onChange={(e) => updateBhBlock(day, idx, "startTime", e.target.value)} />
+                    <span className="sh-sep">–</span>
+                    <input className="sh-time" type="time" value={block.endTime}
+                      onChange={(e) => updateBhBlock(day, idx, "endTime", e.target.value)} />
+                    <button className="sh-del-btn" onClick={() => removeBhBlock(day, idx)} title="Eliminar franja">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
         <div
           style={{
             marginTop: "16px",
@@ -1364,17 +2788,64 @@ function Empresa() {
           </button>
         </div>
       </div>
+
+      <ClosureCalendar
+        closures={closures}
+        setClosures={setClosures}
+        clViewDate={clViewDate}
+        setClViewDate={setClViewDate}
+        clSelected={clSelected}
+        setClSelected={setClSelected}
+        clMsg={clMsg}
+        setClMsg={setClMsg}
+        businessDaysOfWeek={businessDaysOfWeek}
+      />
+
+      <div className="card" style={{ marginTop: "20px" }}>
+        <div className="card-title">Previsualización del portal de reservas</div>
+        <div className="preview-wrap">
+          <p className="preview-desc">
+            Así es como verán tus clientes la página de reservas al acceder
+            a tu enlace personalizado.
+          </p>
+          <div className="preview-device">
+            <div className="preview-screen">
+              <iframe
+                src={`/booking/${tenant.slug}`}
+                title="Vista previa del portal de reservas"
+                sandbox="allow-scripts allow-same-origin"
+              />
+            </div>
+          </div>
+          <a
+            href={bookingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="preview-open-btn"
+          >
+            ↗ Abrir en pantalla completa
+          </a>
+        </div>
+      </div>
     </>
   );
 }
 
 /* ── SERVICES ── */
+const SVC_MODES = [
+  { id: "sequential", label: "Cita individual",       desc: "Un cliente por empleado a la vez" },
+  { id: "capacity",   label: "Aforo / Grupo",          desc: "Varios clientes hasta un límite" },
+  { id: "split",      label: "Con tiempo de espera",   desc: "El profesional puede atender otro cliente mientras el anterior espera" },
+];
+
 function Services() {
   const [items, setItems] = useState([]);
   const [modal, setModal] = useState(false);
   const [step, setStep] = useState("create");
   const [editingService, setEditingService] = useState(null);
-  const [form, setForm] = useState({ name: "", duration: "" });
+  const [form, setForm] = useState({ name: "", duration: "", capacity: "", chairTime: "" });
+  const [serviceMode, setServiceMode] = useState("sequential");
+  const [sinLimite, setSinLimite] = useState(false);
   const [createdService, setCreatedService] = useState(null);
   const [serviceFields, setServiceFields] = useState([]);
   const [fieldForm, setFieldForm] = useState({
@@ -1405,7 +2876,9 @@ function Services() {
 
   const openCreate = () => {
     setEditingService(null);
-    setForm({ name: "", duration: "" });
+    setForm({ name: "", duration: "", capacity: "", chairTime: "" });
+    setServiceMode("sequential");
+    setSinLimite(false);
     setCreatedService(null);
     setServiceFields([]);
     setFieldForm({ label: "", fieldType: "TEXT", required: false });
@@ -1415,7 +2888,10 @@ function Services() {
 
   const openEdit = async (svc) => {
     setEditingService(svc);
-    setForm({ name: svc.name, duration: String(svc.duration) });
+    const hasCapacity = svc.capacity != null;
+    setForm({ name: svc.name, duration: String(svc.duration), capacity: (hasCapacity && svc.capacity > 0) ? String(svc.capacity) : "", chairTime: svc.chairTime ? String(svc.chairTime) : "" });
+    setServiceMode(hasCapacity ? "capacity" : svc.chairTime ? "split" : "sequential");
+    setSinLimite(hasCapacity && svc.capacity === 0);
     setCreatedService(null);
     setServiceFields([]);
     setFieldForm({ label: "", fieldType: "TEXT", required: false });
@@ -1431,7 +2907,14 @@ function Services() {
   const saveService = async (e) => {
     e.preventDefault();
     try {
-      const body = { name: form.name, duration: Number(form.duration) };
+      const body = {
+        name: form.name,
+        duration: Number(form.duration),
+        capacity: serviceMode === "capacity"
+          ? (sinLimite ? 0 : (form.capacity ? Number(form.capacity) : null))
+          : null,
+        chairTime: serviceMode === "split" && form.chairTime ? Number(form.chairTime) : null,
+      };
       const svc = editingService
         ? await api(`/api/services/${editingService.id}`, {
             method: "PUT",
@@ -1502,6 +2985,7 @@ function Services() {
               <tr>
                 <th>Nombre</th>
                 <th>Duración</th>
+                <th>Capacidad</th>
                 <th>Campos</th>
                 <th>Estado</th>
                 <th></th>
@@ -1514,6 +2998,7 @@ function Services() {
                     <strong>{s.name}</strong>
                   </td>
                   <td>{s.duration} min</td>
+                  <td>{s.capacity == null ? "—" : s.capacity === 0 ? "Sin límite" : `${s.capacity} pers.`}</td>
                   <td>
                     {s.fields?.length || 0} campo
                     {(s.fields?.length || 0) !== 1 ? "s" : ""}
@@ -1578,6 +3063,67 @@ function Services() {
                       required
                     />
                   </div>
+
+                  <div className="form-field">
+                    <label style={{ marginBottom: "8px", display: "block" }}>¿Cómo se atiende este servicio?</label>
+                    <div className="svc-seg">
+                      {SVC_MODES.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={`svc-seg-btn${serviceMode === m.id ? " active" : ""}`}
+                          onClick={() => { setServiceMode(m.id); setSinLimite(false); }}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="svc-mode-desc">
+                      {SVC_MODES.find((m) => m.id === serviceMode)?.desc}
+                    </div>
+                  </div>
+
+                  {serviceMode === "capacity" && (
+                    <div className="form-field">
+                      <label
+                        style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", textTransform: "none", letterSpacing: 0, fontSize: "0.78rem", color: "var(--ink)", fontWeight: 400 }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={sinLimite}
+                          onChange={(e) => setSinLimite(e.target.checked)}
+                          style={{ width: "auto", accentColor: "var(--blue)" }}
+                        />
+                        Sin límite de plazas (aceptar todos los clientes)
+                      </label>
+                      {!sinLimite && (
+                        <input
+                          type="number"
+                          min="2"
+                          placeholder="Nº máximo de clientes"
+                          value={form.capacity}
+                          onChange={(e) => setForm((p) => ({ ...p, capacity: e.target.value }))}
+                          required
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {serviceMode === "split" && (
+                    <div className="form-field">
+                      <label>Tiempo activo del profesional (min)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={form.chairTime}
+                        onChange={(e) => setForm((p) => ({ ...p, chairTime: e.target.value }))}
+                        required
+                      />
+                      <p style={{ fontSize: "0.74rem", color: "var(--ink-muted)", marginTop: "4px", lineHeight: 1.5 }}>
+                        Minutos que el profesional necesita estar presente. El resto de la duración total es espera pasiva.
+                      </p>
+                    </div>
+                  )}
                   <div className="modal-actions">
                     <button
                       type="button"
@@ -1729,31 +3275,70 @@ function Services() {
 /* ── EMPLOYEES ── */
 function Employees() {
   const [items, setItems] = useState([]);
+  const [allServices, setAllServices] = useState([]);
+  const [slug, setSlug] = useState("");
+  const [copiedPortal, setCopiedPortal] = useState(false);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [editingEmp, setEditingEmp] = useState(null);
+  const [form, setForm] = useState({ name: "", email: "", phone: "", pin: "" });
+  const [empAllSvcs, setEmpAllSvcs] = useState(true);
+  const [empSvcIds, setEmpSvcIds] = useState([]);
   const [msg, setMsg] = useState(null);
 
-  const load = () =>
-    api("/api/employees")
-      .then(setItems)
-      .catch(() => {});
+  const load = () => api("/api/employees").then(setItems).catch(() => {});
   useEffect(() => {
     load();
+    api("/api/services").then(setAllServices).catch(() => {});
+    api("/api/tenant").then((t) => setSlug(t.slug)).catch(() => {});
   }, []);
+
+  const portalUrl = slug ? `${window.location.origin}/emp/${slug}` : "";
+  const copyPortalUrl = () => {
+    if (!portalUrl) return;
+    navigator.clipboard.writeText(portalUrl);
+    setCopiedPortal(true);
+    setTimeout(() => setCopiedPortal(false), 2000);
+  };
+
+  const openCreate = () => {
+    setEditingEmp(null);
+    setForm({ name: "", email: "", phone: "", pin: "" });
+    setEmpAllSvcs(true);
+    setEmpSvcIds([]);
+    setModal(true);
+  };
+
+  const openEdit = (emp) => {
+    setEditingEmp(emp);
+    setForm({ name: emp.name, email: emp.email || "", phone: emp.phone || "", pin: "" });
+    setEmpAllSvcs(!emp.serviceIds || emp.serviceIds.length === 0);
+    setEmpSvcIds(emp.serviceIds || []);
+    setModal(true);
+  };
 
   const save = async (e) => {
     e.preventDefault();
     try {
-      await api("/api/employees", {
-        method: "POST",
-        body: JSON.stringify(form),
-      });
+      if (editingEmp) {
+        await api(`/api/employees/${editingEmp.id}`, {
+          method: "PUT",
+          body: JSON.stringify({ ...form, serviceIds: empAllSvcs ? [] : empSvcIds }),
+        });
+        setMsg({ type: "ok", text: "Empleado actualizado." });
+      } else {
+        await api("/api/employees", {
+          method: "POST",
+          body: JSON.stringify({ ...form, serviceIds: empAllSvcs ? [] : empSvcIds }),
+        });
+        setMsg({ type: "ok", text: "Empleado creado." });
+      }
       setModal(false);
-      setForm({ name: "", email: "", phone: "" });
+      setForm({ name: "", email: "", phone: "", pin: "" });
+      setEmpAllSvcs(true);
+      setEmpSvcIds([]);
       load();
-      setMsg({ type: "ok", text: "Empleado creado." });
     } catch {
-      setMsg({ type: "err", text: "Error al crear el empleado." });
+      setMsg({ type: "err", text: editingEmp ? "Error al actualizar." : "Error al crear." });
     }
   };
 
@@ -1771,10 +3356,23 @@ function Employees() {
       {msg && <div className={`alert ${msg.type}`}>{msg.text}</div>}
       <div className="section-header">
         <div className="section-title">Todos los empleados</div>
-        <button className="btn-primary" onClick={() => setModal(true)}>
+        <button className="btn-primary" onClick={openCreate}>
           + Nuevo empleado
         </button>
       </div>
+
+      {portalUrl && (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "var(--white)", border: "1px solid var(--stone-border)", borderRadius: "8px", padding: "10px 14px", marginBottom: "16px", fontSize: "0.80rem" }}>
+          <span style={{ color: "var(--ink-muted)" }}>Portal empleados:</span>
+          <a href={portalUrl} target="_blank" rel="noreferrer" style={{ color: "var(--blue)", fontWeight: 500, wordBreak: "break-all" }}>{portalUrl}</a>
+          <button
+            onClick={copyPortalUrl}
+            style={{ marginLeft: "auto", flexShrink: 0, padding: "4px 10px", fontSize: "0.74rem", border: "1.5px solid var(--stone-border)", borderRadius: "5px", background: "var(--white)", cursor: "pointer" }}
+          >
+            {copiedPortal ? "✓ Copiado" : "Copiar"}
+          </button>
+        </div>
+      )}
       <div className="table-wrap">
         {items.length === 0 ? (
           <div className="empty">No hay empleados. Añade el primero.</div>
@@ -1785,6 +3383,8 @@ function Employees() {
                 <th>Nombre</th>
                 <th>Email</th>
                 <th>Teléfono</th>
+                <th>Servicios</th>
+                <th>Portal</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
@@ -1792,19 +3392,32 @@ function Employees() {
             <tbody>
               {items.map((e) => (
                 <tr key={e.id}>
-                  <td>
-                    <strong>{e.name}</strong>
-                  </td>
+                  <td><strong>{e.name}</strong></td>
                   <td>{e.email}</td>
                   <td>{e.phone}</td>
+                  <td style={{ fontSize: "0.78rem", color: "var(--ink-muted)" }}>
+                    {!e.serviceIds || e.serviceIds.length === 0
+                      ? <span style={{ color: "var(--blue)", fontWeight: 500 }}>Todos</span>
+                      : e.serviceIds.map((sid) => {
+                          const svc = allServices.find((s) => s.id === sid);
+                          return svc ? svc.name : sid;
+                        }).join(", ")
+                    }
+                  </td>
+                  <td style={{ fontSize: "0.76rem" }}>
+                    {e.hasPinSet
+                      ? <span style={{ color: "var(--success)", fontWeight: 500 }}>✓ PIN</span>
+                      : <span style={{ color: "var(--ink-muted)" }}>Sin PIN</span>}
+                  </td>
                   <td>
-                    <span
-                      className={`badge badge-${e.active ? "active" : "inactive"}`}
-                    >
+                    <span className={`badge badge-${e.active ? "active" : "inactive"}`}>
                       {e.active ? "Activo" : "Inactivo"}
                     </span>
                   </td>
-                  <td>
+                  <td style={{ display: "flex", gap: "6px" }}>
+                    <button className="btn-sm" onClick={() => openEdit(e)}>
+                      Editar
+                    </button>
                     <button className="btn-danger" onClick={() => del(e.id)}>
                       Eliminar
                     </button>
@@ -1819,15 +3432,13 @@ function Employees() {
       {modal && (
         <div className="overlay" onClick={() => setModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title">Nuevo empleado</div>
+            <div className="modal-title">{editingEmp ? "Editar empleado" : "Nuevo empleado"}</div>
             <form onSubmit={save}>
               <div className="form-field">
                 <label>Nombre</label>
                 <input
                   value={form.name}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, name: e.target.value }))
-                  }
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
                   required
                 />
               </div>
@@ -1837,31 +3448,81 @@ function Employees() {
                   <input
                     type="email"
                     value={form.email}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, email: e.target.value }))
-                    }
+                    onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
                   />
                 </div>
                 <div className="form-field">
                   <label>Teléfono</label>
                   <input
                     value={form.phone}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, phone: e.target.value }))
-                    }
+                    onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
                   />
                 </div>
               </div>
+              <div className="form-field">
+                <label>Servicios que realiza</label>
+                <label className="emp-svc-item" style={{ marginTop: "8px" }}>
+                  <input
+                    type="checkbox"
+                    checked={empAllSvcs}
+                    onChange={(ev) => { setEmpAllSvcs(ev.target.checked); if (ev.target.checked) setEmpSvcIds([]); }}
+                  />
+                  <span style={{ fontWeight: 500, color: "var(--blue)" }}>Todos los servicios</span>
+                </label>
+                {!empAllSvcs && (
+                  <div className="emp-svc-list">
+                    {allServices.map((s) => (
+                      <label key={s.id} className="emp-svc-item">
+                        <input
+                          type="checkbox"
+                          checked={empSvcIds.includes(s.id)}
+                          onChange={(ev) => setEmpSvcIds((p) =>
+                            ev.target.checked ? [...p, s.id] : p.filter((x) => x !== s.id)
+                          )}
+                        />
+                        {s.name}
+                        <span style={{ marginLeft: "auto", fontSize: "0.70rem", color: "var(--ink-muted)" }}>
+                          {s.duration} min
+                        </span>
+                      </label>
+                    ))}
+                    {allServices.length === 0 && (
+                      <div style={{ fontSize: "0.78rem", color: "var(--ink-muted)", padding: "4px" }}>
+                        Crea servicios primero
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="form-field" style={{ marginTop: "4px" }}>
+                <label>
+                  PIN de acceso al portal
+                  {editingEmp?.hasPinSet && (
+                    <span style={{ marginLeft: "8px", fontSize: "0.70rem", color: "var(--success)", fontWeight: 400 }}>
+                      ✓ Configurado
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="password"
+                  placeholder={editingEmp?.hasPinSet ? "Dejar vacío para no cambiar" : "4–8 dígitos"}
+                  value={form.pin || ""}
+                  onChange={(e) => setForm((p) => ({ ...p, pin: e.target.value }))}
+                  maxLength={8}
+                  style={{ fontFamily: "monospace", letterSpacing: "0.2em" }}
+                />
+                <div style={{ fontSize: "0.70rem", color: "var(--ink-muted)", marginTop: "4px" }}>
+                  El empleado usará este PIN para entrar en <strong>/emp/{"{slug}"}</strong>
+                </div>
+              </div>
+
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn-cancel"
-                  onClick={() => setModal(false)}
-                >
+                <button type="button" className="btn-cancel" onClick={() => setModal(false)}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn-primary">
-                  Guardar
+                  {editingEmp ? "Guardar cambios" : "Crear"}
                 </button>
               </div>
             </form>
@@ -1876,14 +3537,29 @@ function Employees() {
 function Hours() {
   const [employees, setEmployees] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [hours, setHours] = useState([]);
+  const [byDay, setByDay] = useState(() => Object.fromEntries(DAYS.map((d) => [d, []])));
+  // tenantShifts: { MONDAY: [{s:"09:00", e:"14:00"}, ...], ... } — horario del negocio como referencia
+  const [tenantShifts, setTenantShifts] = useState({});
   const [msg, setMsg] = useState(null);
 
   useEffect(() => {
+    // Cargar horario del negocio para filtrar días disponibles y ofrecer atajos de relleno.
+    api("/api/tenant/hours")
+      .then((data) => {
+        const map = {};
+        data.forEach((h) => {
+          if (!map[h.dayOfWeek]) map[h.dayOfWeek] = [];
+          map[h.dayOfWeek].push({ s: h.startTime?.slice(0, 5) || "", e: h.endTime?.slice(0, 5) || "" });
+        });
+        setTenantShifts(map);
+      })
+      .catch(() => {});
+
     api("/api/employees")
       .then((data) => {
-        setEmployees(data);
-        if (data.length > 0) setSelected(data[0].id);
+        const active = data.filter((e) => e.active);
+        setEmployees(active);
+        if (active.length > 0) setSelected(active[0].id);
       })
       .catch(() => {});
   }, []);
@@ -1892,49 +3568,61 @@ function Hours() {
     if (!selected) return;
     api(`/api/employees/${selected}/working-hours`)
       .then((data) => {
-        const map = {};
+        const map = Object.fromEntries(DAYS.map((d) => [d, []]));
         data.forEach((h) => {
-          map[h.dayOfWeek] = h;
+          if (!map[h.dayOfWeek]) map[h.dayOfWeek] = [];
+          map[h.dayOfWeek].push({
+            startTime: h.startTime?.slice(0, 5) || "",
+            endTime: h.endTime?.slice(0, 5) || "",
+          });
         });
-        setHours(
-          DAYS.map(
-            (d) =>
-              map[d] || {
-                dayOfWeek: d,
-                startTime: "",
-                endTime: "",
-                enabled: false,
-              },
-          ),
-        );
+        setByDay(map);
       })
-      .catch(() =>
-        setHours(
-          DAYS.map((d) => ({
-            dayOfWeek: d,
-            startTime: "",
-            endTime: "",
-            enabled: false,
-          })),
-        ),
-      );
+      .catch(() => setByDay(Object.fromEntries(DAYS.map((d) => [d, []]))));
   }, [selected]);
 
-  const toggle = (i) =>
-    setHours((h) =>
-      h.map((d, j) => (j === i ? { ...d, enabled: !d.enabled } : d)),
-    );
-  const update = (i, k, v) =>
-    setHours((h) => h.map((d, j) => (j === i ? { ...d, [k]: v } : d)));
+  // Solo días que el negocio tiene horario configurado.
+  const openDays = DAYS.filter((d) => (tenantShifts[d] || []).length > 0);
+
+  const addBlock = (day, preset = null) =>
+    setByDay((p) => ({
+      ...p,
+      [day]: [...p[day], preset || { startTime: "", endTime: "" }],
+    }));
+
+  const removeBlock = (day, idx) =>
+    setByDay((p) => ({ ...p, [day]: p[day].filter((_, i) => i !== idx) }));
+
+  const updateBlock = (day, idx, key, val) =>
+    setByDay((p) => ({
+      ...p,
+      [day]: p[day].map((b, i) => (i === idx ? { ...b, [key]: val } : b)),
+    }));
+
+  // Atajos de relleno basados en el horario del negocio.
+  const applyPreset = (day, presetType) => {
+    const shifts = tenantShifts[day] || [];
+    if (shifts.length === 0) return;
+    if (presetType === "shift1") {
+      addBlock(day, { startTime: shifts[0].s, endTime: shifts[0].e });
+    } else if (presetType === "shift2" && shifts.length >= 2) {
+      addBlock(day, { startTime: shifts[1].s, endTime: shifts[1].e });
+    } else if (presetType === "allday") {
+      const start = shifts.reduce((min, sh) => sh.s < min ? sh.s : min, shifts[0].s);
+      const end = shifts.reduce((max, sh) => sh.e > max ? sh.e : max, shifts[0].e);
+      addBlock(day, { startTime: start, endTime: end });
+    }
+  };
 
   const save = async () => {
-    const payload = hours
-      .filter((h) => h.enabled && h.startTime && h.endTime)
-      .map(({ dayOfWeek, startTime, endTime }) => ({
-        dayOfWeek,
-        startTime,
-        endTime,
-      }));
+    const pad = (t) => (t && t.length === 5 ? t + ":00" : t || "");
+    const payload = [];
+    DAYS.forEach((day) => {
+      (byDay[day] || []).forEach((b) => {
+        if (b.startTime && b.endTime)
+          payload.push({ dayOfWeek: day, startTime: pad(b.startTime), endTime: pad(b.endTime) });
+      });
+    });
     try {
       await api(`/api/employees/${selected}/working-hours`, {
         method: "PUT",
@@ -1946,6 +3634,9 @@ function Hours() {
     }
   };
 
+  if (employees.length === 0)
+    return <div className="empty">No hay empleados activos. Crea uno primero desde la sección de Empleados.</div>;
+
   return (
     <>
       {msg && <div className={`alert ${msg.type}`}>{msg.text}</div>}
@@ -1954,79 +3645,161 @@ function Hours() {
         <select
           className="status-select"
           value={selected || ""}
-          onChange={(e) => setSelected(Number(e.target.value))}
+          onChange={(e) => { setSelected(Number(e.target.value)); setMsg(null); }}
         >
           {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
+            <option key={e.id} value={e.id}>{e.name}</option>
           ))}
         </select>
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Día</th>
-              <th>Activo</th>
-              <th>Entrada</th>
-              <th>Salida</th>
-            </tr>
-          </thead>
-          <tbody>
-            {hours.map((h, i) => (
-              <tr key={h.dayOfWeek}>
-                <td>
-                  <strong>{DAY_ES[h.dayOfWeek]}</strong>
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={!!h.enabled || (!!h.startTime && !!h.endTime)}
-                    onChange={() => toggle(i)}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="time"
-                    value={h.startTime?.slice(0, 5) || ""}
-                    onChange={(e) => update(i, "startTime", e.target.value)}
-                    style={{
-                      border: "1px solid var(--stone-border)",
-                      borderRadius: "5px",
-                      padding: "4px 8px",
-                      fontSize: "0.84rem",
-                    }}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="time"
-                    value={h.endTime?.slice(0, 5) || ""}
-                    onChange={(e) => update(i, "endTime", e.target.value)}
-                    style={{
-                      border: "1px solid var(--stone-border)",
-                      borderRadius: "5px",
-                      padding: "4px 8px",
-                      fontSize: "0.84rem",
-                    }}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <p style={{ fontSize: "0.82rem", color: "var(--ink-muted)", marginBottom: "20px", lineHeight: 1.5 }}>
+        Solo aparecen los días en que el negocio tiene horario configurado. Usa los atajos para rellenar automáticamente desde el horario del negocio.
+      </p>
+      {openDays.length === 0 && (
+        <div className="alert err">El negocio no tiene horario configurado. Configúralo primero en Mi Empresa → Horario del negocio.</div>
+      )}
+      {openDays.map((day) => {
+        const shifts = tenantShifts[day] || [];
+        return (
+          <div key={day} className="sh-day-block">
+            <div className="sh-day-header">
+              <span className="sh-day-name">{DAY_ES[day]}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                {byDay[day].length === 0 && <span className="sh-no-shifts">Sin turno</span>}
+                {/* Atajos de relleno automático */}
+                {shifts.length >= 1 && (
+                  <button className="sh-add-btn" style={{ borderColor: "var(--blue-light)", color: "var(--blue)" }}
+                    onClick={() => applyPreset(day, "shift1")} title="Añadir 1ª franja del negocio">
+                    + 1ª Franja
+                  </button>
+                )}
+                {shifts.length >= 2 && (
+                  <button className="sh-add-btn" style={{ borderColor: "var(--blue-light)", color: "var(--blue)" }}
+                    onClick={() => applyPreset(day, "shift2")} title="Añadir 2ª franja del negocio">
+                    + 2ª Franja
+                  </button>
+                )}
+                {shifts.length >= 1 && (
+                  <button className="sh-add-btn" style={{ borderColor: "var(--ochre)", color: "var(--ochre)" }}
+                    onClick={() => applyPreset(day, "allday")} title="Todo el horario del negocio en un bloque">
+                    + Todo el día
+                  </button>
+                )}
+                <button className="sh-add-btn" onClick={() => addBlock(day)}>+ Manual</button>
+              </div>
+            </div>
+            {byDay[day].length > 0 && (
+              <div className="sh-shifts-list">
+                {byDay[day].map((block, idx) => (
+                  <div key={idx} className="sh-shift-row">
+                    <input
+                      className="sh-time"
+                      type="time"
+                      value={block.startTime}
+                      onChange={(e) => updateBlock(day, idx, "startTime", e.target.value)}
+                    />
+                    <span className="sh-sep">–</span>
+                    <input
+                      className="sh-time"
+                      type="time"
+                      value={block.endTime}
+                      onChange={(e) => updateBlock(day, idx, "endTime", e.target.value)}
+                    />
+                    <button className="sh-del-btn" onClick={() => removeBlock(day, idx)} title="Eliminar franja">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
+        <button className="btn-primary" onClick={save}>Guardar horarios</button>
       </div>
-      <div
-        style={{
-          marginTop: "16px",
-          display: "flex",
-          justifyContent: "flex-end",
-        }}
-      >
-        <button className="btn-primary" onClick={save}>
-          Guardar horarios
-        </button>
+    </>
+  );
+}
+
+/* ── SUBSCRIPTION ── */
+const FEATURES = [
+  "Reservas ilimitadas de clientes",
+  "Portal de reservas personalizado por negocio",
+  "Gestión de servicios con campos personalizados",
+  "Horarios por empleado y jornadas partidas",
+  "Panel de administración con calendario",
+  "Creación manual de reservas desde el panel",
+  "Hasta 5 empleados activos",
+  "Acceso a todas las secciones del panel",
+];
+
+function Subscription() {
+  return (
+    <>
+      <div className="section-header">
+        <div className="section-title">Planes y suscripción</div>
+      </div>
+      <p style={{ fontSize: "0.86rem", color: "var(--ink-muted)", marginBottom: "28px", lineHeight: 1.6, maxWidth: "600px" }}>
+        Empieza gratis durante un mes y descubre todo lo que Fresco puede hacer por tu negocio.
+        Sin tarjeta de crédito, sin compromisos.
+      </p>
+      <div className="plans-grid">
+        <div className="plan-card">
+          <div className="plan-badge">Prueba gratuita</div>
+          <div className="plan-name">1 mes gratis</div>
+          <div className="plan-price">0€</div>
+          <div className="plan-price-sub">durante 30 días · sin tarjeta</div>
+          <div className="plan-divider" />
+          <p style={{ fontSize: "0.8rem", color: "var(--ink-muted)", marginBottom: "16px", lineHeight: 1.5 }}>
+            Prueba Fresco durante 1 mes con acceso completo a todas las funciones. Descubre cómo
+            automatizar tus reservas, gestionar a tu equipo y crecer sin esfuerzo.
+          </p>
+          <ul className="plan-features">
+            {FEATURES.map((f, i) => (
+              <li key={i} className="plan-feature">
+                <span className="plan-feature-icon">✓</span>
+                {f}
+              </li>
+            ))}
+          </ul>
+          <button className="plan-cta plan-cta-free" disabled>
+            Plan activo · Período de prueba
+          </button>
+        </div>
+
+        <div className="plan-card plan-pro">
+          <div className="plan-badge">Plan profesional</div>
+          <div className="plan-name">Fresco Pro</div>
+          <div className="plan-price">29€</div>
+          <div className="plan-price-sub">por mes · facturación mensual</div>
+          <div className="plan-divider" />
+          <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.65)", marginBottom: "16px", lineHeight: 1.5 }}>
+            Todas las funciones de la prueba gratuita, más empleados, soporte prioritario y
+            acceso anticipado a nuevas funcionalidades.
+          </p>
+          <ul className="plan-features">
+            {FEATURES.map((f, i) => (
+              <li key={i} className="plan-feature">
+                <span className="plan-feature-icon">✓</span>
+                {f}
+              </li>
+            ))}
+            <li className="plan-feature">
+              <span className="plan-feature-icon">✓</span>
+              Empleados ilimitados
+            </li>
+            <li className="plan-feature">
+              <span className="plan-feature-icon">✓</span>
+              Soporte prioritario por email
+            </li>
+            <li className="plan-feature">
+              <span className="plan-feature-icon">✓</span>
+              Acceso anticipado a nuevas funciones
+            </li>
+          </ul>
+          <button className="plan-cta plan-cta-pro">
+            Suscribirse por 29€/mes →
+          </button>
+        </div>
       </div>
     </>
   );

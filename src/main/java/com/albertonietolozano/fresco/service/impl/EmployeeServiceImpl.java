@@ -6,6 +6,7 @@ import com.albertonietolozano.fresco.model.Employee;
 import com.albertonietolozano.fresco.repository.EmployeeRepository;
 import com.albertonietolozano.fresco.service.EmployeeService;
 import com.albertonietolozano.fresco.tenant.TenantContext;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,15 +16,26 @@ import java.util.List;
 public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public EmployeeServiceImpl(EmployeeRepository employeeRepository) {
+    public EmployeeServiceImpl(EmployeeRepository employeeRepository, PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public List<EmployeeResponse> getAll() {
         return employeeRepository.findAllByTenantIdAndActiveTrue(TenantContext.getTenantId())
                 .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
+    public List<EmployeeResponse> getAllByServiceId(Long serviceId) {
+        return employeeRepository.findAllByTenantIdAndActiveTrue(TenantContext.getTenantId())
+                .stream()
+                .filter(e -> e.getServiceIds().isEmpty() || e.getServiceIds().contains(serviceId))
                 .map(this::toResponse)
                 .toList();
     }
@@ -44,8 +56,13 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .email(request.email())
                 .phone(request.phone())
                 .userId(request.userId())
+                .serviceIds(request.serviceIds() != null ? request.serviceIds() : List.of())
                 .active(true)
                 .build();
+
+        if (request.pin() != null && !request.pin().isBlank()) {
+            employee.setPinHash(passwordEncoder.encode(request.pin()));
+        }
 
         return toResponse(employeeRepository.save(employee));
     }
@@ -60,6 +77,11 @@ public class EmployeeServiceImpl implements EmployeeService {
         employee.setEmail(request.email());
         employee.setPhone(request.phone());
         employee.setUserId(request.userId());
+        employee.setServiceIds(request.serviceIds() != null ? request.serviceIds() : List.of());
+
+        if (request.pin() != null && !request.pin().isBlank()) {
+            employee.setPinHash(passwordEncoder.encode(request.pin()));
+        }
 
         return toResponse(employeeRepository.save(employee));
     }
@@ -81,7 +103,9 @@ public class EmployeeServiceImpl implements EmployeeService {
                 employee.getEmail(),
                 employee.getPhone(),
                 employee.getUserId(),
-                employee.getActive()
+                employee.getActive(),
+                employee.getServiceIds(),
+                employee.getPinHash() != null
         );
     }
 }

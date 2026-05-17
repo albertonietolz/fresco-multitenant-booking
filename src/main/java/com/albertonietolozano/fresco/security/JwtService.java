@@ -15,6 +15,8 @@ import java.util.Map;
 @Service
 public class JwtService {
 
+    private static final long EMPLOYEE_TOKEN_TTL = 10L * 60 * 60 * 1000; // 10 horas
+
     private final JwtProperties jwtProperties;
 
     public JwtService(JwtProperties jwtProperties) {
@@ -24,7 +26,6 @@ public class JwtService {
     public String generateToken(UserDetails userDetails, Long tenantId) {
         return Jwts.builder()
                 .subject(userDetails.getUsername())
-                // El tenantId se incluye en el payload para recuperarlo en cada petición sin consultar BD.
                 .claims(Map.of("tenantId", tenantId))
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtProperties.getExpiration()))
@@ -32,30 +33,48 @@ public class JwtService {
                 .compact();
     }
 
-    public String extractEmail(String token) {
+    // Token de empleado: subject = "emp:{employeeId}", claims incluyen tenantId y employeeId.
+    public String generateEmployeeToken(Long employeeId, Long tenantId) {
+        return Jwts.builder()
+                .subject("emp:" + employeeId)
+                .claims(Map.of("tenantId", tenantId, "employeeId", employeeId))
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + EMPLOYEE_TOKEN_TTL))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public String extractSubject(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    // Alias usado por JwtAuthFilter para tokens de usuario estándar.
+    public String extractEmail(String token) {
+        return extractSubject(token);
     }
 
     public Long extractTenantId(String token) {
         Object tenantId = parseClaims(token).get("tenantId");
-        // Jackson deserializa números pequeños como Integer; el pattern matching evita el cast explícito.
-        if (tenantId instanceof Integer i) {
-            return i.longValue();
-        }
+        if (tenantId instanceof Integer i) return i.longValue();
         return (Long) tenantId;
+    }
+
+    public Long extractEmployeeId(String token) {
+        Object employeeId = parseClaims(token).get("employeeId");
+        if (employeeId instanceof Integer i) return i.longValue();
+        return (Long) employeeId;
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         String email = extractEmail(token);
-        return email.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        return email.equals(userDetails.getUsername()) && !isExpired(token);
     }
 
-    private boolean isTokenExpired(String token) {
+    public boolean isExpired(String token) {
         return parseClaims(token).getExpiration().before(new Date());
     }
 
     private Claims parseClaims(String token) {
-        // verifyWith comprueba la firma antes de devolver el payload; lanza excepción si el token fue manipulado.
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()

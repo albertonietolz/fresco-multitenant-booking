@@ -6,5 +6,6 @@ public record TenantResponse(
         String slug,
         String email,
         String phone,
-        String address
+        String address,
+        Integer maxCapacity
 ) {}

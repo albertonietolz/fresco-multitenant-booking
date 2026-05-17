@@ -10,6 +10,8 @@ public interface EmployeeService {
 
     List<EmployeeResponse> getAll();
 
+    List<EmployeeResponse> getAllByServiceId(Long serviceId);
+
     EmployeeResponse getById(Long id);
 
     EmployeeResponse create(EmployeeRequest request);
