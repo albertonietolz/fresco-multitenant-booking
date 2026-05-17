@@ -62,7 +62,12 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new RuntimeException("Service not found"));
         int duration = service.getDuration();
 
-        List<WorkingHours> workingHoursList = workingHoursRepository.findAllByEmployeeId(employeeId)
+        List<WorkingHours> employeeSpecific = workingHoursRepository.findAllByEmployeeId(employeeId);
+        List<WorkingHours> workingHoursList = (employeeSpecific.isEmpty()
+                ? workingHoursRepository.findAllByTenantIdAndEmployeeIdIsNull(TenantContext.getTenantId() != null
+                        ? TenantContext.getTenantId()
+                        : service.getTenantId())
+                : employeeSpecific)
                 .stream()
                 .filter(wh -> wh.getDayOfWeek() == date.getDayOfWeek())
                 .toList();

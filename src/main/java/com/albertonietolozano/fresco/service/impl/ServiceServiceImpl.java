@@ -31,6 +31,14 @@ public class ServiceServiceImpl implements ServiceService {
     }
 
     @Override
+    public List<ServiceResponse> getAllIncludingInactive() {
+        return serviceRepository.findAllByTenantId(TenantContext.getTenantId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
     public ServiceResponse getById(Long id) {
         return serviceRepository.findById(id)
                 .filter(s -> s.getTenantId().equals(TenantContext.getTenantId()))
@@ -63,6 +71,15 @@ public class ServiceServiceImpl implements ServiceService {
         service.setCapacity(request.capacity());
         service.setChairTime(request.chairTime());
 
+        return toResponse(serviceRepository.save(service));
+    }
+
+    @Override
+    public ServiceResponse toggleActive(Long id, Boolean active) {
+        Service service = serviceRepository.findById(id)
+                .filter(s -> s.getTenantId().equals(TenantContext.getTenantId()))
+                .orElseThrow(() -> new RuntimeException("Service not found"));
+        service.setActive(active);
         return toResponse(serviceRepository.save(service));
     }
 

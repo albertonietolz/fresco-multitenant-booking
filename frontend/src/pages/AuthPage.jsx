@@ -625,7 +625,10 @@ export default function AuthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(rf),
       });
-      if (!r.ok) throw new Error("Error en el registro.");
+      if (!r.ok) {
+        const msg = await r.text();
+        throw new Error(msg || "Error en el registro.");
+      }
       const d = await r.json();
       localStorage.setItem("token", d.token);
       localStorage.setItem("tenantId", d.tenantId);

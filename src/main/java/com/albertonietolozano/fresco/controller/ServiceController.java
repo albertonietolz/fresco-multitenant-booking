@@ -21,7 +21,7 @@ public class ServiceController {
 
     @GetMapping
     public ResponseEntity<List<ServiceResponse>> getAll() {
-        return ResponseEntity.ok(serviceService.getAll());
+        return ResponseEntity.ok(serviceService.getAllIncludingInactive());
     }
 
     @GetMapping("/{id}")
@@ -37,6 +37,11 @@ public class ServiceController {
     @PutMapping("/{id}")
     public ResponseEntity<ServiceResponse> update(@PathVariable Long id, @RequestBody ServiceRequest request) {
         return ResponseEntity.ok(serviceService.update(id, request));
+    }
+
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<ServiceResponse> toggleActive(@PathVariable Long id, @RequestParam Boolean active) {
+        return ResponseEntity.ok(serviceService.toggleActive(id, active));
     }
 
     @DeleteMapping("/{id}")

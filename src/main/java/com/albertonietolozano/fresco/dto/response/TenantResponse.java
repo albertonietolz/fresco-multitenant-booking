@@ -7,5 +7,6 @@ public record TenantResponse(
         String email,
         String phone,
         String address,
-        Integer maxCapacity
+        Integer maxCapacity,
+        Boolean allowEmployeeChoice
 ) {}

@@ -79,8 +79,13 @@ public class PublicController {
             @RequestParam Long serviceId,
             @RequestParam LocalDate date
     ) {
-        resolveTenantId(slug);
-        return ResponseEntity.ok(bookingService.getAvailableSlots(employeeId, serviceId, date));
+        Long tenantId = resolveTenantId(slug);
+        TenantContext.setTenantId(tenantId);
+        try {
+            return ResponseEntity.ok(bookingService.getAvailableSlots(employeeId, serviceId, date));
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     @PostMapping
@@ -89,7 +94,12 @@ public class PublicController {
             @RequestBody BookingRequest request
     ) {
         Long tenantId = resolveTenantId(slug);
-        return ResponseEntity.ok(bookingService.createBooking(request, tenantId));
+        TenantContext.setTenantId(tenantId);
+        try {
+            return ResponseEntity.ok(bookingService.createBooking(request, tenantId));
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     @GetMapping("/availability/month")
@@ -100,8 +110,13 @@ public class PublicController {
             @RequestParam int year,
             @RequestParam int month
     ) {
-        resolveTenantId(slug);
-        return ResponseEntity.ok(bookingService.getAvailableDatesForMonth(employeeId, serviceId, year, month));
+        Long tenantId = resolveTenantId(slug);
+        TenantContext.setTenantId(tenantId);
+        try {
+            return ResponseEntity.ok(bookingService.getAvailableDatesForMonth(employeeId, serviceId, year, month));
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     @GetMapping("/info")
@@ -111,7 +126,7 @@ public class PublicController {
         return ResponseEntity.ok(new TenantResponse(
                 tenant.getId(), tenant.getName(), tenant.getSlug(),
                 tenant.getEmail(), tenant.getPhone(), tenant.getAddress(),
-                tenant.getMaxCapacity()
+                tenant.getMaxCapacity(), Boolean.TRUE.equals(tenant.getAllowEmployeeChoice())
         ));
     }
 

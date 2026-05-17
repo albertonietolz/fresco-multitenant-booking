@@ -50,6 +50,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        if (tenantRepository.existsBySlug(request.tenantSlug())) {
+            throw new IllegalArgumentException("El slug '" + request.tenantSlug() + "' ya está en uso.");
+        }
+        if (tenantRepository.existsByEmail(request.tenantEmail())) {
+            throw new IllegalArgumentException("El email del negocio ya está registrado.");
+        }
+        if (userRepository.existsByEmail(request.userEmail())) {
+            throw new IllegalArgumentException("El email de usuario ya está registrado.");
+        }
+
         Tenant tenant = Tenant.builder()
                 .name(request.tenantName())
                 .slug(request.tenantSlug())

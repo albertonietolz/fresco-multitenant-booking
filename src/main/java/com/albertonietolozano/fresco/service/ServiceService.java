@@ -10,11 +10,15 @@ public interface ServiceService {
 
     List<ServiceResponse> getAll();
 
+    List<ServiceResponse> getAllIncludingInactive();
+
     ServiceResponse getById(Long id);
 
     ServiceResponse create(ServiceRequest request);
 
     ServiceResponse update(Long id, ServiceRequest request);
+
+    ServiceResponse toggleActive(Long id, Boolean active);
 
     void delete(Long id);
 }

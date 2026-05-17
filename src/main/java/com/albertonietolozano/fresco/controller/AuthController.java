@@ -2,7 +2,6 @@ package com.albertonietolozano.fresco.controller;
 
 import com.albertonietolozano.fresco.dto.request.LoginRequest;
 import com.albertonietolozano.fresco.dto.request.RegisterRequest;
-import com.albertonietolozano.fresco.dto.response.AuthResponse;
 import com.albertonietolozano.fresco.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +23,12 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+        try {
+            return ResponseEntity.ok(authService.register(request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/login")

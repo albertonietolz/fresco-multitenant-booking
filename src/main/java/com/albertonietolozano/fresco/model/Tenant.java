@@ -1,6 +1,7 @@
 package com.albertonietolozano.fresco.model;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -39,4 +40,7 @@ public class Tenant {
     private Boolean active;
 
     private Integer maxCapacity;
+
+    @Builder.Default
+    private Boolean allowEmployeeChoice = false;
 }

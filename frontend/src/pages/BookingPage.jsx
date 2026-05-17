@@ -784,16 +784,21 @@ export default function BookingPage() {
   }, [slug]);
 
   useEffect(() => {
-    if (!service) return;
+    if (!service || !tenant) return;
     pub(`/${slug}/booking/employees/${service.id}`)
       .then((data) => {
         const active = data.filter((e) => e.active);
         setEmployees(active);
-        if (active.length === 1) { setEmployee(active[0]); setStep(3); }
-        else setStep(2);
+        if (!tenant.allowEmployeeChoice || active.length === 1) {
+          // Auto-asignar primer empleado disponible sin mostrar selección
+          setEmployee(active[0] || null);
+          setStep(active.length > 0 ? 3 : 2);
+        } else {
+          setStep(2);
+        }
       })
       .catch(() => setStep(2));
-  }, [service]);
+  }, [service, tenant]);
 
   useEffect(() => {
     if (!service || !employee || !date) return;
@@ -846,7 +851,9 @@ export default function BookingPage() {
     finally { setSubmitting(false); }
   };
 
-  const STEPS = ["Servicio", "Profesional", "Fecha y hora", "Tus datos"];
+  const STEPS = tenant?.allowEmployeeChoice
+    ? ["Servicio", "Profesional", "Fecha y hora", "Tus datos"]
+    : ["Servicio", "Fecha y hora", "Tus datos"];
 
   if (notFound) return (
     <>
@@ -882,10 +889,12 @@ export default function BookingPage() {
             <div className="bk-progress">
               {STEPS.map((label, i) => {
                 const n = i + 1;
-                const cls = step === n ? "active" : step > n ? "done" : "";
+                // When employee choice is hidden, actual steps are 1,3,4 → map to display 1,2,3
+                const actualStep = tenant?.allowEmployeeChoice ? step : (step === 1 ? 1 : step - 1);
+                const cls = actualStep === n ? "active" : actualStep > n ? "done" : "";
                 return (
                   <div key={n} className={`bk-prog-step ${cls}`}>
-                    <div className="bk-prog-dot">{step > n ? "✓" : n}</div>
+                    <div className="bk-prog-dot">{actualStep > n ? "✓" : n}</div>
                     <span className="bk-prog-label">{label}</span>
                   </div>
                 );
@@ -911,7 +920,7 @@ export default function BookingPage() {
               slots={slots}
               slotsLoading={slotsLoading}
               onSlot={(s) => { setSlot(s); setStep(4); setError(null); }}
-              onBack={() => setStep(employees.length > 1 ? 2 : 1)}
+              onBack={() => setStep(tenant?.allowEmployeeChoice && employees.length > 1 ? 2 : 1)}
               calYear={calYear}
               calMonth={calMonth}
               onPrevMonth={() => {

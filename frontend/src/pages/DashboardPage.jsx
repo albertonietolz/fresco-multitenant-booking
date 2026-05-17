@@ -1951,22 +1951,24 @@ export default function DashboardPage() {
   };
 
   const NAV = [
-    { id: "overview", label: "Resumen" },
-    { id: "empresa", label: "Mi empresa" },
-    { id: "services", label: "Servicios" },
+    { id: "overview",  label: "Resumen" },
+    { id: "planning",  label: "Planificación" },
+    { id: "empresa",   label: "Mi empresa" },
+    { id: "services",  label: "Servicios" },
     { id: "employees", label: "Empleados" },
-    { id: "hours", label: "Horarios" },
-    { id: "bookings", label: "Reservas" },
+    { id: "hours",     label: "Horarios" },
+    { id: "bookings",  label: "Reservas" },
     { id: "suscripcion", label: "Suscripción" },
   ];
 
   const TITLES = {
-    overview: "Panel de control",
-    empresa: "Mi empresa",
-    services: "Servicios",
-    employees: "Empleados",
-    hours: "Horarios",
-    bookings: "Reservas",
+    overview:    "Panel de control",
+    planning:    "Planificación",
+    empresa:     "Mi empresa",
+    services:    "Servicios",
+    employees:   "Empleados",
+    hours:       "Horarios",
+    bookings:    "Reservas",
     suscripcion: "Suscripción",
   };
 
@@ -2027,12 +2029,13 @@ export default function DashboardPage() {
             </div>
           </header>
           <div className="content">
-            {section === "overview" && <Overview setSection={goSection} />}
-            {section === "empresa" && <Empresa />}
-            {section === "services" && <Services />}
+            {section === "overview"  && <Overview setSection={goSection} />}
+            {section === "planning"  && <Planning />}
+            {section === "empresa"   && <Empresa />}
+            {section === "services"  && <Services />}
             {section === "employees" && <Employees />}
-            {section === "hours" && <Hours />}
-            {section === "bookings" && <Bookings />}
+            {section === "hours"     && <Hours />}
+            {section === "bookings"  && <Bookings />}
             {section === "suscripcion" && <Subscription />}
           </div>
         </div>
@@ -2551,6 +2554,7 @@ function Empresa() {
           phone: data.phone || "",
           address: data.address || "",
           maxCapacity: data.maxCapacity != null ? String(data.maxCapacity) : "",
+          allowEmployeeChoice: data.allowEmployeeChoice ?? false,
         });
       })
       .catch(() => {});
@@ -2697,6 +2701,20 @@ function Empresa() {
               />
               <p style={{ fontSize: "0.73rem", color: "var(--ink-muted)", marginTop: "4px", lineHeight: 1.5 }}>
                 Número máximo de personas que pueden estar siendo atendidas al mismo tiempo en el local. Deja vacío si no quieres limitarlo.
+              </p>
+            </div>
+            <div className="form-field">
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", userSelect: "none" }}>
+                <input
+                  type="checkbox"
+                  checked={form.allowEmployeeChoice ?? false}
+                  onChange={(e) => setForm((p) => ({ ...p, allowEmployeeChoice: e.target.checked }))}
+                  style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                />
+                Permitir que el cliente elija profesional
+              </label>
+              <p style={{ fontSize: "0.73rem", color: "var(--ink-muted)", marginTop: "4px", lineHeight: 1.5 }}>
+                Si está desactivado, el sistema asigna automáticamente un profesional disponible.
               </p>
             </div>
             <div style={{ marginTop: "20px" }}>
@@ -2958,12 +2976,21 @@ function Services() {
     }
   };
 
-  const del = async (id) => {
+  const toggleActive = async (id, active) => {
+    try {
+      await api(`/api/services/${id}/active?active=${active}`, { method: "PATCH" });
+      load();
+    } catch {
+      setMsg({ type: "err", text: "Error al cambiar el estado del servicio." });
+    }
+  };
+
+  const delService = async (id) => {
     try {
       await api(`/api/services/${id}`, { method: "DELETE" });
       load();
     } catch {
-      setMsg({ type: "err", text: "Error al eliminar." });
+      setMsg({ type: "err", text: "Error al eliminar el servicio." });
     }
   };
 
@@ -3015,7 +3042,13 @@ function Services() {
                       <button className="btn-sm" onClick={() => openEdit(s)}>
                         Editar
                       </button>
-                      <button className="btn-danger" onClick={() => del(s.id)}>
+                      <button
+                        className="btn-sm"
+                        onClick={() => toggleActive(s.id, !s.active)}
+                      >
+                        {s.active ? "Desactivar" : "Activar"}
+                      </button>
+                      <button className="btn-danger" onClick={() => delService(s.id)}>
                         Eliminar
                       </button>
                     </div>
@@ -3404,9 +3437,9 @@ function Employees() {
                         }).join(", ")
                     }
                   </td>
-                  <td style={{ fontSize: "0.76rem" }}>
-                    {e.hasPinSet
-                      ? <span style={{ color: "var(--success)", fontWeight: 500 }}>✓ PIN</span>
+                  <td style={{ fontSize: "0.76rem", fontFamily: "monospace", letterSpacing: "0.1em" }}>
+                    {e.pin
+                      ? <span style={{ color: "var(--blue)", fontWeight: 600 }}>{e.pin}</span>
                       : <span style={{ color: "var(--ink-muted)" }}>Sin PIN</span>}
                   </td>
                   <td>
@@ -3496,22 +3529,20 @@ function Employees() {
               </div>
 
               <div className="form-field" style={{ marginTop: "4px" }}>
-                <label>
-                  PIN de acceso al portal
-                  {editingEmp?.hasPinSet && (
-                    <span style={{ marginLeft: "8px", fontSize: "0.70rem", color: "var(--success)", fontWeight: 400 }}>
-                      ✓ Configurado
-                    </span>
-                  )}
-                </label>
+                <label>PIN de acceso al portal</label>
                 <input
-                  type="password"
-                  placeholder={editingEmp?.hasPinSet ? "Dejar vacío para no cambiar" : "4–8 dígitos"}
+                  type="text"
+                  placeholder={editingEmp?.pin ? "Dejar vacío para no cambiar" : "4–8 dígitos"}
                   value={form.pin || ""}
                   onChange={(e) => setForm((p) => ({ ...p, pin: e.target.value }))}
                   maxLength={8}
                   style={{ fontFamily: "monospace", letterSpacing: "0.2em" }}
                 />
+                {editingEmp?.pin && (
+                  <div style={{ fontSize: "0.70rem", color: "var(--ink-muted)", marginTop: "4px" }}>
+                    PIN actual: <strong style={{ color: "var(--blue)", fontFamily: "monospace" }}>{editingEmp.pin}</strong>
+                  </div>
+                )}
                 <div style={{ fontSize: "0.70rem", color: "var(--ink-muted)", marginTop: "4px" }}>
                   El empleado usará este PIN para entrar en <strong>/emp/{"{slug}"}</strong>
                 </div>
@@ -3716,6 +3747,113 @@ function Hours() {
       <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
         <button className="btn-primary" onClick={save}>Guardar horarios</button>
       </div>
+    </>
+  );
+}
+
+/* ── PLANNING ── */
+function Planning() {
+  const [bookings, setBookings] = useState([]);
+  const [services, setServices] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    api("/api/bookings").then(setBookings).catch(() => {});
+    api("/api/services").then(setServices).catch(() => {});
+    api("/api/employees").then(setEmployees).catch(() => {});
+  }, []);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const upcoming = bookings
+    .filter((b) => b.date >= today && b.status !== "CANCELLED")
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || "").localeCompare(b.startTime || ""));
+
+  const byDay = {};
+  upcoming.forEach((b) => {
+    if (!byDay[b.date]) byDay[b.date] = [];
+    byDay[b.date].push(b);
+  });
+
+  const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const DOW_ES = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  const fmtDate = (ds) => {
+    const [y, m, d] = ds.split("-");
+    const dt = new Date(Number(y), Number(m) - 1, Number(d));
+    return `${DOW_ES[dt.getDay()]}, ${Number(d)} de ${MONTHS_ES[Number(m) - 1]}`;
+  };
+
+  const STATUS_ES = { PENDING: "Pendiente", CONFIRMED: "Confirmada", CANCELLED: "Cancelada" };
+
+  if (Object.keys(byDay).length === 0) {
+    return <div className="empty">No hay reservas próximas pendientes o confirmadas.</div>;
+  }
+
+  return (
+    <>
+      <div className="section-header" style={{ marginBottom: "20px" }}>
+        <div className="section-title">Agenda desde hoy</div>
+        <span style={{ fontSize: "0.8rem", color: "var(--ink-muted)" }}>
+          {upcoming.length} reserva{upcoming.length !== 1 ? "s" : ""} próximas
+        </span>
+      </div>
+      {Object.entries(byDay).map(([date, dayBookings]) => (
+        <div key={date} style={{ marginBottom: "24px" }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: "12px",
+            marginBottom: "10px",
+          }}>
+            <div style={{
+              background: date === today ? "var(--blue)" : "var(--stone-border)",
+              color: date === today ? "#fff" : "var(--ink-muted)",
+              borderRadius: "6px", padding: "2px 10px",
+              fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.06em",
+              textTransform: "uppercase", flexShrink: 0,
+            }}>
+              {date === today ? "Hoy" : fmtDate(date)}
+            </div>
+            <div style={{ flex: 1, height: "1px", background: "var(--stone-border)" }} />
+            <span style={{ fontSize: "0.72rem", color: "var(--ink-muted)", flexShrink: 0 }}>
+              {dayBookings.length} cita{dayBookings.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {dayBookings.map((b) => {
+              const svc = services.find((s) => s.id === b.serviceId);
+              const emp = employees.find((e) => e.id === b.employeeId);
+              return (
+                <div key={b.id} style={{
+                  background: "var(--white)", border: "1.5px solid var(--stone-border)",
+                  borderLeft: `4px solid ${b.status === "CONFIRMED" ? "var(--success)" : "var(--ochre)"}`,
+                  borderRadius: "8px", padding: "12px 16px",
+                  display: "flex", alignItems: "center", gap: "16px",
+                  flexWrap: "wrap",
+                }}>
+                  <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: "1rem", color: "var(--blue)", minWidth: "44px" }}>
+                    {b.startTime?.slice(0, 5) || "—"}
+                  </div>
+                  <div style={{ flex: 1, minWidth: "160px" }}>
+                    <div style={{ fontWeight: 500, fontSize: "0.88rem" }}>{b.customerName}</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>
+                      {svc?.name || "—"}{emp ? ` · ${emp.name}` : ""}
+                    </div>
+                    {(b.customerPhone || b.customerEmail) && (
+                      <div style={{ fontSize: "0.72rem", color: "var(--ink-muted)", marginTop: "2px" }}>
+                        {b.customerPhone && <span>{b.customerPhone}</span>}
+                        {b.customerPhone && b.customerEmail && <span> · </span>}
+                        {b.customerEmail && <span>{b.customerEmail}</span>}
+                      </div>
+                    )}
+                  </div>
+                  <span className={`badge badge-${b.status.toLowerCase()}`}>
+                    {STATUS_ES[b.status]}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </>
   );
 }
@@ -4082,15 +4220,18 @@ function Bookings() {
                     <tr key={b.id}>
                       <td>
                         <strong>{b.customerName}</strong>
+                        {b.customerPhone && (
+                          <>
+                            <br />
+                            <span style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>
+                              {b.customerPhone}
+                            </span>
+                          </>
+                        )}
                         {b.customerEmail && (
                           <>
                             <br />
-                            <span
-                              style={{
-                                fontSize: "0.75rem",
-                                color: "var(--ink-muted)",
-                              }}
-                            >
+                            <span style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>
                               {b.customerEmail}
                             </span>
                           </>

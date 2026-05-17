@@ -51,6 +51,9 @@ public class TenantController {
         tenant.setPhone(request.phone());
         tenant.setAddress(request.address());
         tenant.setMaxCapacity(request.maxCapacity());
+        if (request.allowEmployeeChoice() != null) {
+            tenant.setAllowEmployeeChoice(request.allowEmployeeChoice());
+        }
         return ResponseEntity.ok(toResponse(tenantRepository.save(tenant)));
     }
 
@@ -106,7 +109,8 @@ public class TenantController {
                 tenant.getEmail(),
                 tenant.getPhone(),
                 tenant.getAddress(),
-                tenant.getMaxCapacity()
+                tenant.getMaxCapacity(),
+                Boolean.TRUE.equals(tenant.getAllowEmployeeChoice())
         );
     }
 }

@@ -5,5 +5,6 @@ public record TenantRequest(
         String email,
         String phone,
         String address,
-        Integer maxCapacity
+        Integer maxCapacity,
+        Boolean allowEmployeeChoice
 ) {}
