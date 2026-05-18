@@ -2,6 +2,11 @@ spring:
   application:
     name: fresco
 
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 50MB
+
   datasource:
     url: jdbc:postgresql://localhost:5433/fresco
     username: postgres

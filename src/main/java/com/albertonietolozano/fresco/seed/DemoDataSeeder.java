@@ -11,6 +11,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 
@@ -44,10 +45,63 @@ public class DemoDataSeeder implements ApplicationRunner {
         this.passwordEncoder = passwordEncoder;
     }
 
+    private static final Map<String, java.math.BigDecimal> SERVICE_PRICES = Map.of(
+            "Sesión de fisioterapia",   new BigDecimal("55.00"),
+            "Masaje terapéutico",       new BigDecimal("35.00"),
+            "Rehabilitación deportiva", new BigDecimal("65.00"),
+            "Valoración inicial",       new BigDecimal("25.00"),
+            "Electroterapia",           new BigDecimal("20.00")
+    );
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (tenantRepository.existsBySlug("fisiovital")) return;
+        if (tenantRepository.existsBySlug("fisiovital")) {
+            Long tenantId = tenantRepository.findBySlug("fisiovital").get().getId();
+
+            // Precios de servicios
+            serviceRepository.findAllByTenantId(tenantId).forEach(s -> {
+                if (s.getPrice() == null && SERVICE_PRICES.containsKey(s.getName())) {
+                    s.setPrice(SERVICE_PRICES.get(s.getName()));
+                    serviceRepository.save(s);
+                }
+            });
+
+            // PINs de empleados
+            Map<String, String> empPins = Map.of(
+                    "María García", "1111",
+                    "Carlos Ruiz",  "2222",
+                    "Laura Sanz",   "3333"
+            );
+            employeeRepository.findAllByTenantId(tenantId).forEach(emp -> {
+                if (emp.getPin() == null && empPins.containsKey(emp.getName())) {
+                    emp.setPin(empPins.get(emp.getName()));
+                    emp.setPinHash(passwordEncoder.encode(empPins.get(emp.getName())));
+                    employeeRepository.save(emp);
+                }
+            });
+
+            // Horarios por empleado
+            List<DayOfWeek> wd = List.of(
+                    DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                    DayOfWeek.THURSDAY, DayOfWeek.FRIDAY);
+            employeeRepository.findAllByTenantId(tenantId).forEach(emp -> {
+                if (workingHoursRepository.findAllByEmployeeId(emp.getId()).isEmpty()) {
+                    for (DayOfWeek day : wd) {
+                        workingHoursRepository.save(WorkingHours.builder()
+                                .tenantId(tenantId).employeeId(emp.getId())
+                                .dayOfWeek(day)
+                                .startTime(LocalTime.of(9, 0)).endTime(LocalTime.of(14, 0)).build());
+                        workingHoursRepository.save(WorkingHours.builder()
+                                .tenantId(tenantId).employeeId(emp.getId())
+                                .dayOfWeek(day)
+                                .startTime(LocalTime.of(16, 0)).endTime(LocalTime.of(20, 0)).build());
+                    }
+                }
+            });
+
+            return;
+        }
 
         // ── Tenant ──────────────────────────────────────────────────────────
         Tenant tenant = tenantRepository.save(Tenant.builder()
@@ -75,27 +129,27 @@ public class DemoDataSeeder implements ApplicationRunner {
         Service sesion = serviceRepository.save(Service.builder()
                 .tenantId(tenant.getId())
                 .name("Sesión de fisioterapia")
-                .duration(50).capacity(null).active(true).build());
+                .duration(50).capacity(null).price(new BigDecimal("55.00")).active(true).build());
 
         Service masaje = serviceRepository.save(Service.builder()
                 .tenantId(tenant.getId())
                 .name("Masaje terapéutico")
-                .duration(30).capacity(null).active(true).build());
+                .duration(30).capacity(null).price(new BigDecimal("35.00")).active(true).build());
 
         Service rehab = serviceRepository.save(Service.builder()
                 .tenantId(tenant.getId())
                 .name("Rehabilitación deportiva")
-                .duration(60).capacity(null).active(true).build());
+                .duration(60).capacity(null).price(new BigDecimal("65.00")).active(true).build());
 
         Service valoracion = serviceRepository.save(Service.builder()
                 .tenantId(tenant.getId())
                 .name("Valoración inicial")
-                .duration(30).capacity(null).active(true).build());
+                .duration(30).capacity(null).price(new BigDecimal("25.00")).active(true).build());
 
         Service electro = serviceRepository.save(Service.builder()
                 .tenantId(tenant.getId())
                 .name("Electroterapia")
-                .duration(20).capacity(3).active(true).build());
+                .duration(20).capacity(3).price(new BigDecimal("20.00")).active(true).build());
 
         // ── Empleados ────────────────────────────────────────────────────────
         // serviceIds vacío = atiende todos los servicios
@@ -131,6 +185,22 @@ public class DemoDataSeeder implements ApplicationRunner {
                 .pinHash(passwordEncoder.encode("3333"))
                 .serviceIds(new ArrayList<>(List.of(masaje.getId(), electro.getId(), valoracion.getId())))
                 .build());
+
+        // ── Horarios por empleado ────────────────────────────────────────────
+        for (Employee emp : List.of(maria, carlos, laura)) {
+            for (DayOfWeek day : List.of(
+                    DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                    DayOfWeek.THURSDAY, DayOfWeek.FRIDAY)) {
+                workingHoursRepository.save(WorkingHours.builder()
+                        .tenantId(tenant.getId()).employeeId(emp.getId())
+                        .dayOfWeek(day)
+                        .startTime(LocalTime.of(9, 0)).endTime(LocalTime.of(14, 0)).build());
+                workingHoursRepository.save(WorkingHours.builder()
+                        .tenantId(tenant.getId()).employeeId(emp.getId())
+                        .dayOfWeek(day)
+                        .startTime(LocalTime.of(16, 0)).endTime(LocalTime.of(20, 0)).build());
+            }
+        }
 
         // ── Horarios del negocio (empleado null = horario general) ───────────
         List<DayOfWeek> weekdays = List.of(

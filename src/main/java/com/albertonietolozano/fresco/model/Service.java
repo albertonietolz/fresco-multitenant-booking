@@ -3,6 +3,8 @@ package com.albertonietolozano.fresco.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "services")
 @Getter
@@ -32,6 +34,9 @@ public class Service {
      *  de este tiempo aunque la cita del cliente aún no haya terminado (p.ej. tiempo de espera de un tinte). */
     @Column
     private Integer chairTime;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal price;
 
     @Column(nullable = false)
     private Boolean active;

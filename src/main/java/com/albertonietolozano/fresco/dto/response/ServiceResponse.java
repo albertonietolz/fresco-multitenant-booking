@@ -1,5 +1,6 @@
 package com.albertonietolozano.fresco.dto.response;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public record ServiceResponse(
@@ -8,6 +9,7 @@ public record ServiceResponse(
         Integer duration,
         Integer capacity,
         Integer chairTime,
+        BigDecimal price,
         Boolean active,
         List<CustomFieldResponse> fields
 ) {}

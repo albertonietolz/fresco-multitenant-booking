@@ -621,28 +621,34 @@ const styles = `
     background: var(--white);
     border: 1px solid var(--stone-border);
     border-radius: 10px;
-    overflow: hidden;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     box-shadow: 0 1px 4px rgba(8,12,30,0.04);
   }
+
+  .table-wrap::-webkit-scrollbar { height: 5px; }
+  .table-wrap::-webkit-scrollbar-track { background: var(--stone); }
+  .table-wrap::-webkit-scrollbar-thumb { background: var(--stone-border); border-radius: 3px; }
 
   table { width: 100%; border-collapse: collapse; }
 
   thead { background: var(--stone); }
 
   th {
-    padding: 10px 16px;
+    padding: 9px 12px;
     text-align: left;
-    font-size: 0.68rem;
+    font-size: 0.67rem;
     font-weight: 500;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.10em;
     text-transform: uppercase;
     color: var(--ink-muted);
     border-bottom: 1px solid var(--stone-border);
+    white-space: nowrap;
   }
 
   td {
-    padding: 12px 16px;
-    font-size: 0.84rem;
+    padding: 10px 12px;
+    font-size: 0.83rem;
     color: var(--ink);
     border-bottom: 1px solid rgba(216,207,192,0.4);
   }
@@ -1530,7 +1536,18 @@ const styles = `
   .sh-del-btn:hover { background: #fef2f2; border-color: var(--error); }
 
   /* ── BOOKING CALENDAR ── */
-  .bookings-layout { display: grid; grid-template-columns: 264px 1fr; gap: 20px; align-items: start; }
+  .bookings-layout { display: grid; grid-template-columns: 210px 1fr; gap: 14px; align-items: start; }
+  .bookings-layout > div { min-width: 0; }
+
+  /* Compactar sección Reservas: fuente y padding más pequeños */
+  .bookings-section { font-size: 0.78rem; }
+  .bookings-section .section-header { margin-bottom: 14px; }
+  .bookings-section .table-wrap th { padding: 6px 9px; font-size: 0.60rem; letter-spacing: 0.08em; }
+  .bookings-section .table-wrap td { padding: 7px 9px; font-size: 0.76rem; }
+  .bookings-section .status-select { font-size: 0.72rem; padding: 3px 6px; }
+  .bookings-section .badge { font-size: 0.67rem; padding: 2px 7px; }
+  .bookings-section .section-title { font-size: 1.35rem; }
+  .bookings-section .btn-primary { font-size: 0.78rem; padding: 7px 14px; }
 
   .calendar-card {
     background: var(--white);
@@ -1841,11 +1858,7 @@ const styles = `
     .profile-grid { grid-template-columns: 1fr; }
     .bookings-layout { grid-template-columns: 1fr; }
 
-    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .table-wrap::-webkit-scrollbar { height: 5px; }
-    .table-wrap::-webkit-scrollbar-track { background: var(--stone); }
-    .table-wrap::-webkit-scrollbar-thumb { background: var(--stone-border); border-radius: 3px; }
-    .table-wrap > table { min-width: 540px; }
+    .table-wrap > table { min-width: 480px; }
 
     .bh-item { flex-wrap: wrap; gap: 10px; }
     .bh-times { margin-left: 0; }
@@ -1877,7 +1890,6 @@ const styles = `
     .wizard-steps { gap: 0; }
     .step-label { display: none; }
     .section-title { font-size: 1.3rem; }
-    .table-wrap > table { min-width: 480px; }
     .bh-time { width: 95px; }
     .bh-day { min-width: 72px; }
   }
@@ -1894,6 +1906,17 @@ const api = async (path, opts = {}) => {
   });
   if (!res.ok) throw new Error(await res.text());
   if (res.status === 204) return null;
+  return res.json();
+};
+
+const apiMultipart = async (path, formData) => {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 };
 
@@ -2543,6 +2566,9 @@ function Empresa() {
   const [clSelected, setClSelected] = useState(new Set()); // selected day strings
   const [clMsg, setClMsg] = useState(null);
   const [businessDaysOfWeek, setBusinessDaysOfWeek] = useState(new Set()); // JS getDay() values
+  const [docs, setDocs] = useState([]);
+  const [docsMsg, setDocsMsg] = useState(null);
+  const [docUploading, setDocUploading] = useState(false);
 
   useEffect(() => {
     api("/api/tenant")
@@ -2580,6 +2606,10 @@ function Empresa() {
 
     api("/api/tenant/closures")
       .then((dates) => setClosures(new Set(dates)))
+      .catch(() => {});
+
+    api("/api/tenant/documents")
+      .then(setDocs)
       .catch(() => {});
   }, []);
 
@@ -2636,6 +2666,32 @@ function Empresa() {
     navigator.clipboard.writeText(bookingUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const uploadDocs = async (files) => {
+    if (!files.length) return;
+    setDocUploading(true);
+    setDocsMsg(null);
+    try {
+      const fd = new FormData();
+      for (const f of files) fd.append("files", f);
+      const result = await apiMultipart("/api/tenant/documents", fd);
+      setDocs((prev) => [...result, ...prev]);
+      setDocsMsg({ type: "ok", text: `${result.length} documento${result.length !== 1 ? "s" : ""} subido${result.length !== 1 ? "s" : ""} correctamente.` });
+    } catch {
+      setDocsMsg({ type: "err", text: "Error al subir los documentos." });
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
+  const deleteDoc = async (id) => {
+    try {
+      await api(`/api/tenant/documents/${id}`, { method: "DELETE" });
+      setDocs((prev) => prev.filter((d) => d.id !== id));
+    } catch {
+      setDocsMsg({ type: "err", text: "Error al eliminar el documento." });
+    }
   };
 
   if (!tenant) return <div className="empty">Cargando…</div>;
@@ -2820,6 +2876,59 @@ function Empresa() {
       />
 
       <div className="card" style={{ marginTop: "20px" }}>
+        <div className="card-title">Documentos del negocio</div>
+        <p style={{ fontSize: "0.82rem", color: "var(--ink-muted)", marginBottom: "18px", lineHeight: 1.5 }}>
+          Sube PDFs que tus clientes podrán consultar directamente en la página de reservas (política de cancelación, tarifas, información importante…).
+        </p>
+        {docsMsg && (
+          <div className={`alert ${docsMsg.type}`} style={{ marginBottom: "14px" }}>
+            {docsMsg.text}
+          </div>
+        )}
+        <label
+          style={{
+            display: "inline-flex", alignItems: "center", gap: "8px",
+            padding: "9px 18px", background: "var(--blue)", color: "#fff",
+            borderRadius: "7px", fontSize: "0.84rem", fontWeight: 500,
+            cursor: docUploading ? "wait" : "pointer", opacity: docUploading ? 0.6 : 1,
+            marginBottom: "20px",
+          }}
+        >
+          {docUploading ? "Subiendo…" : "+ Subir PDF(s)"}
+          <input
+            type="file"
+            accept=".pdf,application/pdf"
+            multiple
+            style={{ display: "none" }}
+            disabled={docUploading}
+            onChange={(e) => { uploadDocs(Array.from(e.target.files)); e.target.value = ""; }}
+          />
+        </label>
+        {docs.length === 0 ? (
+          <div style={{ fontSize: "0.82rem", color: "var(--ink-muted)" }}>No hay documentos aún.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {docs.map((d) => (
+              <div
+                key={d.id}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 14px", background: "var(--stone)", borderRadius: "8px",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "1.1rem" }}>📄</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>{d.displayName}</span>
+                </div>
+                <button className="btn-danger" onClick={() => deleteDoc(d.id)}>Eliminar</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginTop: "20px" }}>
         <div className="card-title">Previsualización del portal de reservas</div>
         <div className="preview-wrap">
           <p className="preview-desc">
@@ -2861,9 +2970,10 @@ function Services() {
   const [modal, setModal] = useState(false);
   const [step, setStep] = useState("create");
   const [editingService, setEditingService] = useState(null);
-  const [form, setForm] = useState({ name: "", duration: "", capacity: "", chairTime: "" });
+  const [form, setForm] = useState({ name: "", duration: "", capacity: "", chairTime: "", price: "" });
   const [serviceMode, setServiceMode] = useState("sequential");
   const [sinLimite, setSinLimite] = useState(false);
+  const [showPrice, setShowPrice] = useState(false);
   const [createdService, setCreatedService] = useState(null);
   const [serviceFields, setServiceFields] = useState([]);
   const [fieldForm, setFieldForm] = useState({
@@ -2894,9 +3004,10 @@ function Services() {
 
   const openCreate = () => {
     setEditingService(null);
-    setForm({ name: "", duration: "", capacity: "", chairTime: "" });
+    setForm({ name: "", duration: "", capacity: "", chairTime: "", price: "" });
     setServiceMode("sequential");
     setSinLimite(false);
+    setShowPrice(false);
     setCreatedService(null);
     setServiceFields([]);
     setFieldForm({ label: "", fieldType: "TEXT", required: false });
@@ -2907,9 +3018,10 @@ function Services() {
   const openEdit = async (svc) => {
     setEditingService(svc);
     const hasCapacity = svc.capacity != null;
-    setForm({ name: svc.name, duration: String(svc.duration), capacity: (hasCapacity && svc.capacity > 0) ? String(svc.capacity) : "", chairTime: svc.chairTime ? String(svc.chairTime) : "" });
+    setForm({ name: svc.name, duration: String(svc.duration), capacity: (hasCapacity && svc.capacity > 0) ? String(svc.capacity) : "", chairTime: svc.chairTime ? String(svc.chairTime) : "", price: svc.price != null ? String(svc.price) : "" });
     setServiceMode(hasCapacity ? "capacity" : svc.chairTime ? "split" : "sequential");
     setSinLimite(hasCapacity && svc.capacity === 0);
+    setShowPrice(svc.price != null);
     setCreatedService(null);
     setServiceFields([]);
     setFieldForm({ label: "", fieldType: "TEXT", required: false });
@@ -2932,6 +3044,7 @@ function Services() {
           ? (sinLimite ? 0 : (form.capacity ? Number(form.capacity) : null))
           : null,
         chairTime: serviceMode === "split" && form.chairTime ? Number(form.chairTime) : null,
+        price: showPrice && form.price ? Number(form.price) : null,
       };
       const svc = editingService
         ? await api(`/api/services/${editingService.id}`, {
@@ -3013,6 +3126,7 @@ function Services() {
                 <th>Nombre</th>
                 <th>Duración</th>
                 <th>Capacidad</th>
+                <th>Precio</th>
                 <th>Campos</th>
                 <th>Estado</th>
                 <th></th>
@@ -3026,6 +3140,7 @@ function Services() {
                   </td>
                   <td>{s.duration} min</td>
                   <td>{s.capacity == null ? "—" : s.capacity === 0 ? "Sin límite" : `${s.capacity} pers.`}</td>
+                  <td>{s.price != null ? `${Number(s.price).toFixed(2)} €` : "—"}</td>
                   <td>
                     {s.fields?.length || 0} campo
                     {(s.fields?.length || 0) !== 1 ? "s" : ""}
@@ -3157,6 +3272,35 @@ function Services() {
                       </p>
                     </div>
                   )}
+                  <div className="form-field">
+                    <label
+                      style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", textTransform: "none", letterSpacing: 0, fontSize: "0.78rem", color: "var(--ink)", fontWeight: 400 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={showPrice}
+                        onChange={(e) => { setShowPrice(e.target.checked); if (!e.target.checked) setForm((p) => ({ ...p, price: "" })); }}
+                        style={{ width: "auto", accentColor: "var(--blue)" }}
+                      />
+                      Añadir precio al servicio
+                    </label>
+                    {showPrice && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={form.price}
+                          onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+                          style={{ flex: 1 }}
+                          required
+                        />
+                        <span style={{ fontSize: "0.9rem", color: "var(--ink-muted)", flexShrink: 0 }}>€</span>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="modal-actions">
                     <button
                       type="button"
@@ -4160,7 +4304,7 @@ function Bookings() {
       : `${String(s[0]).padStart(2, "0")}:${String(s[1]).padStart(2, "0")}:00`;
 
   return (
-    <>
+    <div className="bookings-section">
       {msg && <div className={`alert ${msg.type}`}>{msg.text}</div>}
       <div className="section-header">
         <div className="section-title">Reservas</div>
@@ -4498,6 +4642,6 @@ function Bookings() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

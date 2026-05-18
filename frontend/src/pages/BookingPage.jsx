@@ -717,6 +717,80 @@ const styles = `
     font-size: 0.88rem;
   }
 
+  /* ── DOCUMENTS ── */
+  .bk-docs {
+    margin-top: 40px;
+    padding-top: 28px;
+    border-top: 1px solid var(--stone-border);
+  }
+
+  .bk-docs-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+
+  .bk-docs-sub {
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .bk-doc-item {
+    background: var(--white);
+    border: 1.5px solid var(--stone-border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .bk-doc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 16px;
+    cursor: pointer;
+    transition: background 0.12s;
+    gap: 12px;
+  }
+
+  .bk-doc-header:hover { background: var(--stone); }
+
+  .bk-doc-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .bk-doc-icon { font-size: 1.05rem; flex-shrink: 0; }
+
+  .bk-doc-chevron {
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .bk-doc-chevron.open { transform: rotate(180deg); }
+
+  .bk-doc-frame {
+    border-top: 1px solid var(--stone-border);
+    height: 680px;
+  }
+
+  .bk-doc-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  }
+
   /* ── FOOTER ── */
   .bk-footer {
     text-align: center;
@@ -777,10 +851,13 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [booked, setBooked] = useState(null);
+  const [docs, setDocs] = useState([]);
+  const [openDoc, setOpenDoc] = useState(null);
 
   useEffect(() => {
     pub(`/${slug}/booking/info`).then(setTenant).catch(() => setNotFound(true));
     pub(`/${slug}/booking/services`).then((data) => setServices(data.filter((s) => s.active))).catch(() => {});
+    pub(`/${slug}/booking/documents`).then(setDocs).catch(() => {});
   }, [slug]);
 
   useEffect(() => {
@@ -964,6 +1041,34 @@ export default function BookingPage() {
               tenant={tenant}
             />
           )}
+          {docs.length > 0 && (
+            <div className="bk-docs">
+              <div className="bk-docs-title">Documentos del negocio</div>
+              <div className="bk-docs-sub">Consulta la información facilitada por {tenant.name} antes de tu reserva.</div>
+              {docs.map((d) => {
+                const isOpen = openDoc === d.id;
+                return (
+                  <div key={d.id} className="bk-doc-item">
+                    <div className="bk-doc-header" onClick={() => setOpenDoc(isOpen ? null : d.id)}>
+                      <div className="bk-doc-header-left">
+                        <span className="bk-doc-icon">📄</span>
+                        {d.displayName}
+                      </div>
+                      <span className={`bk-doc-chevron${isOpen ? " open" : ""}`}>▼</span>
+                    </div>
+                    {isOpen && (
+                      <div className="bk-doc-frame">
+                        <iframe
+                          src={`http://localhost:8080/${slug}/booking/documents/${d.id}/file`}
+                          title={d.displayName}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </main>
 
         <footer className="bk-footer">
@@ -985,11 +1090,26 @@ function StepService({ services, onSelect }) {
         <div className="bk-service-list">
           {services.map((s) => (
             <button key={s.id} className="bk-service-card" onClick={() => onSelect(s)}>
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="bk-service-name">{s.name}</div>
-                <div className="bk-service-meta">{s.duration} min</div>
+                <div className="bk-service-meta">Aprox. {s.duration} min</div>
               </div>
-              <span className="bk-service-arrow">›</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+                {s.price != null && (
+                  <span style={{
+                    background: "var(--ochre-dim)",
+                    color: "var(--ochre)",
+                    fontWeight: 600,
+                    fontSize: "0.82rem",
+                    padding: "3px 10px",
+                    borderRadius: "20px",
+                    whiteSpace: "nowrap",
+                  }}>
+                    {Number(s.price).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
+                  </span>
+                )}
+                <span className="bk-service-arrow">›</span>
+              </div>
             </button>
           ))}
         </div>
@@ -1151,6 +1271,9 @@ function StepDetails({
         <div className="bk-summary-title">Resumen de tu reserva</div>
         <div className="bk-summary-row"><span className="bk-summary-icon">✂</span>{service.name} · {service.duration} min</div>
         <div className="bk-summary-row"><span className="bk-summary-icon">📅</span>{fmtDate(date)} a las {fmtSlot(slot)}</div>
+        {service.price != null && (
+          <div className="bk-summary-row"><span className="bk-summary-icon">💶</span>Precio: <strong style={{ marginLeft: "4px", color: "#fff" }}>{Number(service.price).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</strong></div>
+        )}
       </div>
 
       {error && <div className="bk-error">{error}</div>}
@@ -1220,6 +1343,13 @@ function StepConfirmation({ booked, service, employee, date, slot, tenant }) {
           <span className="bk-confirm-key">Servicio</span>
           <span className="bk-confirm-val">{service.name}</span>
         </div>
+        {service.price != null && (
+          <div className="bk-confirm-row">
+            <span className="bk-confirm-icon-sm">💶</span>
+            <span className="bk-confirm-key">Precio</span>
+            <span className="bk-confirm-val">{Number(service.price).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
+          </div>
+        )}
         <div className="bk-confirm-row">
           <span className="bk-confirm-icon-sm">📅</span>
           <span className="bk-confirm-key">Fecha</span>

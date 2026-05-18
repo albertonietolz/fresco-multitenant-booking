@@ -2,17 +2,26 @@ package com.albertonietolozano.fresco.controller;
 
 import com.albertonietolozano.fresco.dto.request.TenantRequest;
 import com.albertonietolozano.fresco.dto.request.WorkingHoursRequest;
+import com.albertonietolozano.fresco.dto.response.TenantDocumentResponse;
 import com.albertonietolozano.fresco.dto.response.TenantResponse;
 import com.albertonietolozano.fresco.dto.response.WorkingHoursResponse;
 import com.albertonietolozano.fresco.model.ClosedDate;
 import com.albertonietolozano.fresco.model.Tenant;
+import com.albertonietolozano.fresco.model.TenantDocument;
 import com.albertonietolozano.fresco.repository.ClosedDateRepository;
+import com.albertonietolozano.fresco.repository.TenantDocumentRepository;
 import com.albertonietolozano.fresco.repository.TenantRepository;
 import com.albertonietolozano.fresco.service.WorkingHoursService;
 import com.albertonietolozano.fresco.tenant.TenantContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -24,15 +33,18 @@ public class TenantController {
     private final TenantRepository tenantRepository;
     private final WorkingHoursService workingHoursService;
     private final ClosedDateRepository closedDateRepository;
+    private final TenantDocumentRepository tenantDocumentRepository;
 
     public TenantController(
             TenantRepository tenantRepository,
             WorkingHoursService workingHoursService,
-            ClosedDateRepository closedDateRepository
+            ClosedDateRepository closedDateRepository,
+            TenantDocumentRepository tenantDocumentRepository
     ) {
         this.tenantRepository = tenantRepository;
         this.workingHoursService = workingHoursService;
         this.closedDateRepository = closedDateRepository;
+        this.tenantDocumentRepository = tenantDocumentRepository;
     }
 
     @GetMapping
@@ -99,6 +111,51 @@ public class TenantController {
         List<LocalDate> localDates = dates.stream().map(LocalDate::parse).toList();
         closedDateRepository.deleteByTenantIdAndDateIn(tenantId, localDates);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/documents")
+    public ResponseEntity<List<TenantDocumentResponse>> listDocuments() {
+        Long tenantId = TenantContext.getTenantId();
+        List<TenantDocumentResponse> docs = tenantDocumentRepository
+                .findAllByTenantIdOrderByUploadedAtDesc(tenantId)
+                .stream()
+                .map(this::toDocResponse)
+                .toList();
+        return ResponseEntity.ok(docs);
+    }
+
+    @PostMapping(value = "/documents", consumes = "multipart/form-data")
+    public ResponseEntity<List<TenantDocumentResponse>> uploadDocuments(
+            @RequestParam("files") MultipartFile[] files
+    ) throws IOException {
+        Long tenantId = TenantContext.getTenantId();
+        List<TenantDocumentResponse> saved = new ArrayList<>();
+        for (MultipartFile file : files) {
+            String name = file.getOriginalFilename() != null ? file.getOriginalFilename() : "documento.pdf";
+            TenantDocument doc = TenantDocument.builder()
+                    .tenantId(tenantId)
+                    .fileName(name)
+                    .displayName(name)
+                    .content(file.getBytes())
+                    .contentType(file.getContentType() != null ? file.getContentType() : "application/pdf")
+                    .uploadedAt(LocalDateTime.now())
+                    .build();
+            saved.add(toDocResponse(tenantDocumentRepository.save(doc)));
+        }
+        return ResponseEntity.ok(saved);
+    }
+
+    @DeleteMapping("/documents/{docId}")
+    public ResponseEntity<Void> deleteDocument(@PathVariable Long docId) {
+        Long tenantId = TenantContext.getTenantId();
+        tenantDocumentRepository.findById(docId)
+                .filter(d -> d.getTenantId().equals(tenantId))
+                .ifPresent(tenantDocumentRepository::delete);
+        return ResponseEntity.noContent().build();
+    }
+
+    private TenantDocumentResponse toDocResponse(TenantDocument doc) {
+        return new TenantDocumentResponse(doc.getId(), doc.getDisplayName(), doc.getFileName(), doc.getUploadedAt());
     }
 
     private TenantResponse toResponse(Tenant tenant) {
