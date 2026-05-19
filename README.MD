@@ -3,6 +3,7 @@
 ![Java](https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.0-6DB33F?style=flat-square&logo=springboot&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=flat-square&logo=flutter&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Maven](https://img.shields.io/badge/Maven-3.9-C71A36?style=flat-square&logo=apachemaven&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)
@@ -14,6 +15,8 @@ Multi-tenant appointment booking platform for service-based businesses.
 ## Description
 
 Fresco is a full-stack platform that allows service businesses — clinics, physiotherapy centres, beauty salons, barbershops — to manage their services, employees, schedules and customer bookings through a single shared infrastructure. Each business gets its own isolated space, a public booking portal and a private admin dashboard.
+
+The platform ships two client interfaces that share the same backend and database: a **React web app** for the admin dashboard and public portals, and a **Flutter app** (web, Android and iOS) that replicates the full experience — admin panel, public booking portal and employee portal — with all changes reflected in real time across both clients.
 
 The name draws on the technique Michelangelo used to paint the Sistine Chapel ceiling. A fresco is built layer by layer on wet plaster: each layer bonds permanently to the one beneath, and once dry, the whole becomes a single coherent surface. Fresco the platform is built the same way — authentication, multi-tenancy, domain logic and public booking flow are independent layers that compose into a unified whole. Each business that registers gets its own isolated space within that surface, invisible to the others, yet running on the same foundation.
 
@@ -61,8 +64,10 @@ PostgreSQL
 | Persistence   | Spring Data JPA + Hibernate    |
 | Database      | PostgreSQL 16                  |
 | Build tool    | Maven 3.9                      |
-| Frontend      | React 18 + Vite                |
-| Routing       | React Router v7                |
+| Web frontend  | React 18 + Vite                |
+| Web routing   | React Router v7                |
+| Mobile app    | Flutter 3.x (web, Android, iOS)|
+| Mobile routing| go_router 14.x                 |
 | Boilerplate   | Lombok                         |
 | Containers    | Docker / Docker Compose        |
 
@@ -157,10 +162,15 @@ Each employee can be restricted to a subset of services and assigned a numeric P
 
 ### Employee portal — semi-public
 
-| Method | Path                              | Description                             |
-| ------ | --------------------------------- | --------------------------------------- |
-| `POST` | `/api/emp/login`                  | Authenticate an employee with their PIN |
-| `GET`  | `/api/emp/schedule`               | Get the employee's agenda for a date    |
+The employee portal has two layers: a public login step and a protected schedule endpoint.
+
+| Method | Path                        | Description                                      |
+| ------ | --------------------------- | ------------------------------------------------ |
+| `GET`  | `/{slug}/employee/staff`    | List employees with a PIN set (public)           |
+| `POST` | `/{slug}/employee/login`    | Authenticate with PIN, returns employee JWT      |
+| `GET`  | `/emp/schedule`             | Get the employee's agenda for a date (protected) |
+
+The employee JWT returned by the login endpoint must be sent as `Authorization: Bearer <token>` for the schedule endpoint.
 
 ---
 
@@ -187,6 +197,7 @@ Availability takes closed dates and global venue capacity into account. If the b
 
 - Java 21 + Maven 3.9
 - Node.js 18+
+- Flutter SDK 3.x
 - PostgreSQL 16 on port `5433` (or Docker)
 
 ### Start PostgreSQL with Docker
@@ -214,7 +225,7 @@ mvn spring-boot:run
 
 The application starts on `http://localhost:8080`. The schema is updated automatically on startup (`ddl-auto: update`); no migration scripts are needed.
 
-### Frontend
+### Web frontend
 
 ```bash
 cd frontend
@@ -224,17 +235,30 @@ npm run dev
 
 The dev server starts on `http://localhost:5173`.
 
+### Mobile app
+
+```bash
+cd mobile
+flutter pub get
+flutter run -d chrome
+```
+
+The Flutter web app starts on a random port (e.g. `http://localhost:XXXXX`). It connects to the same backend at `http://localhost:8080`. On Android emulator, the app automatically resolves the backend at `http://10.0.2.2:8080`.
+
+The public portals are accessible at `/{slug}/booking` and `/{slug}/employee` in both the web and mobile apps. Any booking made through either client is immediately visible in the other.
+
 ---
 
 ## Demo account
 
 A demo physiotherapy clinic is seeded automatically on first startup:
 
-| Field    | Value                   |
-| -------- | ----------------------- |
-| Email    | `demo@fresco.app`       |
-| Password | `demo1234`              |
-| Booking portal | `/fisiovital/booking` |
+| Field            | Value                      |
+| ---------------- | -------------------------- |
+| Email            | `demo@fresco.app`          |
+| Password         | `demo1234`                 |
+| Booking portal   | `/fisiovital/booking`      |
+| Employee portal  | `/fisiovital/employee`     |
 
 The seeder is idempotent — it only runs once and does not overwrite existing data on subsequent restarts.
 

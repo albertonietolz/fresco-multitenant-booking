@@ -3,6 +3,7 @@
 ![Java](https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.0-6DB33F?style=flat-square&logo=springboot&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=flat-square&logo=flutter&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Maven](https://img.shields.io/badge/Maven-3.9-C71A36?style=flat-square&logo=apachemaven&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)
@@ -14,6 +15,8 @@ Plataforma multitenant de reserva de citas para negocios de servicios.
 ## Descripcion
 
 Fresco es una plataforma completa que permite a negocios de servicios — clinicas, centros de fisioterapia, salones de belleza, barberias — gestionar sus servicios, empleados, horarios y reservas de clientes a traves de una unica infraestructura compartida. Cada negocio obtiene su propio espacio aislado, un portal publico de reservas y un panel de administracion privado.
+
+La plataforma incluye dos interfaces de cliente que comparten el mismo backend y base de datos: una **app web en React** para el panel de administracion y los portales publicos, y una **app Flutter** (web, Android e iOS) que replica la experiencia completa — panel de administracion, portal de reservas y portal de empleados — con todos los cambios reflejados en tiempo real entre ambos clientes.
 
 El nombre toma como referencia la tecnica que Miguel Angel utilizo para pintar el techo de la Capilla Sixtina. Un fresco se construye capa a capa sobre el yeso humedo: cada capa se une permanentemente a la anterior y, una vez seca, el conjunto forma una superficie coherente. La plataforma Fresco se construye del mismo modo: autenticacion, multitenancy, logica de dominio y flujo publico de reservas son capas independientes que se componen en un todo unificado. Cada negocio que se registra obtiene su propio espacio aislado dentro de esa superficie, invisible para los demas, pero ejecutandose sobre la misma base.
 
@@ -53,18 +56,20 @@ PostgreSQL
 
 ## Stack tecnologico
 
-| Capa          | Tecnologia                     |
-| ------------- | ------------------------------ |
-| Lenguaje      | Java 21                        |
-| Backend       | Spring Boot 4.0                |
-| Seguridad     | Spring Security + JJWT 0.12.6  |
-| Persistencia  | Spring Data JPA + Hibernate    |
-| Base de datos | PostgreSQL 16                  |
-| Build         | Maven 3.9                      |
-| Frontend      | React 18 + Vite                |
-| Enrutamiento  | React Router v7                |
-| Boilerplate   | Lombok                         |
-| Contenedores  | Docker / Docker Compose        |
+| Capa              | Tecnologia                      |
+| ----------------- | ------------------------------- |
+| Lenguaje          | Java 21                         |
+| Backend           | Spring Boot 4.0                 |
+| Seguridad         | Spring Security + JJWT 0.12.6   |
+| Persistencia      | Spring Data JPA + Hibernate     |
+| Base de datos     | PostgreSQL 16                   |
+| Build             | Maven 3.9                       |
+| Frontend web      | React 18 + Vite                 |
+| Enrutamiento web  | React Router v7                 |
+| App movil         | Flutter 3.x (web, Android, iOS) |
+| Enrutamiento movil| go_router 14.x                  |
+| Boilerplate       | Lombok                          |
+| Contenedores      | Docker / Docker Compose         |
 
 ---
 
@@ -157,10 +162,15 @@ Cada empleado puede restringirse a un subconjunto de servicios y se le puede asi
 
 ### Portal de empleados — semipublico
 
-| Metodo | Ruta              | Descripcion                                        |
-| ------ | ----------------- | -------------------------------------------------- |
-| `POST` | `/api/emp/login`  | Autentica a un empleado con su PIN                 |
-| `GET`  | `/api/emp/schedule` | Obtiene la agenda del empleado para una fecha    |
+El portal de empleados tiene dos capas: un paso de login publico y un endpoint protegido de agenda.
+
+| Metodo | Ruta                        | Descripcion                                              |
+| ------ | --------------------------- | -------------------------------------------------------- |
+| `GET`  | `/{slug}/employee/staff`    | Lista empleados con PIN configurado (publico)            |
+| `POST` | `/{slug}/employee/login`    | Autentica con PIN, devuelve JWT de empleado              |
+| `GET`  | `/emp/schedule`             | Obtiene la agenda del empleado para una fecha (protegido)|
+
+El JWT de empleado devuelto por el login debe enviarse como `Authorization: Bearer <token>` para el endpoint de agenda.
 
 ---
 
@@ -187,6 +197,7 @@ La disponibilidad tiene en cuenta las fechas de cierre y el aforo maximo del loc
 
 - Java 21 + Maven 3.9
 - Node.js 18+
+- Flutter SDK 3.x
 - PostgreSQL 16 en el puerto `5433` (o Docker)
 
 ### Iniciar PostgreSQL con Docker
@@ -214,7 +225,7 @@ mvn spring-boot:run
 
 La aplicacion arranca en `http://localhost:8080`. El esquema se actualiza automaticamente al iniciar (`ddl-auto: update`); no se necesitan scripts de migracion.
 
-### Frontend
+### Frontend web
 
 ```bash
 cd frontend
@@ -224,17 +235,30 @@ npm run dev
 
 El servidor de desarrollo arranca en `http://localhost:5173`.
 
+### App movil
+
+```bash
+cd mobile
+flutter pub get
+flutter run -d chrome
+```
+
+La app Flutter web arranca en un puerto aleatorio (p. ej. `http://localhost:XXXXX`). Se conecta al mismo backend en `http://localhost:8080`. En el emulador Android, la app resuelve automaticamente el backend en `http://10.0.2.2:8080`.
+
+Los portales publicos son accesibles en `/{slug}/booking` y `/{slug}/employee` tanto en la app web como en la movil. Cualquier reserva realizada desde cualquiera de los dos clientes es visible inmediatamente en el otro.
+
 ---
 
 ## Cuenta de demostracion
 
 Al arrancar por primera vez se crea automaticamente una clinica de fisioterapia de ejemplo:
 
-| Campo    | Valor                   |
-| -------- | ----------------------- |
-| Email    | `demo@fresco.app`       |
-| Contraseña | `demo1234`            |
-| Portal de reservas | `/fisiovital/booking` |
+| Campo               | Valor                   |
+| ------------------- | ----------------------- |
+| Email               | `demo@fresco.app`       |
+| Contraseña          | `demo1234`              |
+| Portal de reservas  | `/fisiovital/booking`   |
+| Portal de empleados | `/fisiovital/employee`  |
 
 El seeder es idempotente — solo se ejecuta una vez y no sobreescribe datos en reinicios posteriores.
 
