@@ -14,11 +14,19 @@ class _EmployeesTabState extends State<EmployeesTab> {
   List<Employee> _employees = [];
   List<Service> _services = [];
   bool _loading = true;
+  final Set<int?> _expandedServices = {};
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<void> _toggleActive(Employee e) async {
+    try {
+      await ApiService.patch('/api/employees/${e.id}/active', {});
+      _load();
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -172,7 +180,11 @@ class _EmployeesTabState extends State<EmployeesTab> {
 
   Widget _tile(Employee e) {
     final empServices = _services.where((s) => e.serviceIds.contains(s.id)).toList();
-    return Container(
+    final isExpanded = _expandedServices.contains(e.id);
+
+    return Opacity(
+      opacity: e.active ? 1.0 : 0.55,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.cardDecoration(),
@@ -197,25 +209,80 @@ class _EmployeesTabState extends State<EmployeesTab> {
           ]),
           if (empServices.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: empServices.map((s) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppTheme.ochreDim,
-                  borderRadius: BorderRadius.circular(20),
+            GestureDetector(
+              onTap: () => setState(() {
+                if (isExpanded) {
+                  _expandedServices.remove(e.id);
+                } else {
+                  _expandedServices.add(e.id);
+                }
+              }),
+              child: Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.ochreDim,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(
+                      '${empServices.length} ${empServices.length == 1 ? 'servicio' : 'servicios'}',
+                      style: const TextStyle(fontSize: 11, color: AppTheme.ochre, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(isExpanded ? Icons.expand_less : Icons.expand_more, size: 14, color: AppTheme.ochre),
+                  ]),
                 ),
-                child: Text(s.name, style: const TextStyle(fontSize: 10, color: AppTheme.ochre, fontWeight: FontWeight.w600)),
-              )).toList(),
+              ]),
             ),
+            if (isExpanded) ...[
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: empServices.map((s) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.ochreDim,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(s.name, style: const TextStyle(fontSize: 10, color: AppTheme.ochre, fontWeight: FontWeight.w600)),
+                )).toList(),
+              ),
+            ],
           ],
         ])),
-        IconButton(
-          icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.inkMuted),
-          onPressed: () => _openModal(emp: e),
-        ),
+        Column(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.inkMuted),
+            onPressed: () => _openModal(emp: e),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: () => _toggleActive(e),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: e.active
+                    ? AppTheme.errorColor.withValues(alpha: 0.1)
+                    : AppTheme.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                e.active ? 'Desact.' : 'Activar',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: e.active ? AppTheme.errorColor : AppTheme.success,
+                ),
+              ),
+            ),
+          ),
+        ]),
       ]),
+    ),
     );
   }
 

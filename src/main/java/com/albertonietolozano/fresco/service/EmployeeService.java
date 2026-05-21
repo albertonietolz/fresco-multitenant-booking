@@ -18,5 +18,7 @@ public interface EmployeeService {
 
     EmployeeResponse update(Long id, EmployeeRequest request);
 
+    EmployeeResponse toggleActive(Long id);
+
     void delete(Long id);
 }

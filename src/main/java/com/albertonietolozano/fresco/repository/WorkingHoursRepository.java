@@ -15,4 +15,6 @@ public interface WorkingHoursRepository extends JpaRepository<WorkingHours, Long
     List<WorkingHours> findAllByTenantIdAndEmployeeIdIsNull(Long tenantId);
 
     void deleteAllByTenantIdAndEmployeeIdIsNull(Long tenantId);
+
+    List<WorkingHours> findAllByTenantIdAndDayOfWeekAndEmployeeIdIsNotNull(Long tenantId, java.time.DayOfWeek dayOfWeek);
 }

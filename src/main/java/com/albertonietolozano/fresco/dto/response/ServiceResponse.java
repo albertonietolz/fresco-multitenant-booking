@@ -11,5 +11,6 @@ public record ServiceResponse(
         Integer chairTime,
         BigDecimal price,
         Boolean active,
-        List<CustomFieldResponse> fields
+        List<CustomFieldResponse> fields,
+        Long defaultEmployeeId
 ) {}

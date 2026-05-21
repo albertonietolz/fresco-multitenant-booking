@@ -70,8 +70,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         _employees = emps;
         _loading = false;
       });
-      if (!(_tenant?.allowEmployeeChoice ?? true) || emps.length == 1) {
-        _employee = emps.isNotEmpty ? emps.first : null;
+      if (!(_tenant?.allowEmployeeChoice ?? true)) {
+        _employee = Employee(id: null, name: '', active: true, serviceIds: [], hasPinSet: false);
+        setState(() => _step = 3);
+        _loadAvailDates();
+      } else if (emps.length == 1) {
+        _employee = emps.first;
         setState(() => _step = 3);
         _loadAvailDates();
       } else {
@@ -86,8 +90,9 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     if (_service == null || _employee == null) return;
     final slug = widget.slug;
     try {
+      final empParam = _employee?.id != null ? '&employeeId=${_employee!.id}' : '';
       final data = await ApiService.pubGet(
-          '/$slug/booking/availability/month?serviceId=${_service!.id}&employeeId=${_employee!.id}&year=${_calDate.year}&month=${_calDate.month}');
+          '/$slug/booking/availability/month?serviceId=${_service!.id}$empParam&year=${_calDate.year}&month=${_calDate.month}');
       setState(() => _availDates = (data as List).map((e) => e.toString()).toList());
     } catch (_) {}
   }
@@ -97,8 +102,9 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     final slug = widget.slug;
     setState(() => _slots = []);
     try {
+      final empParamS = _employee?.id != null ? '&employeeId=${_employee!.id}' : '';
       final data = await ApiService.pubGet(
-          '/$slug/booking/availability?serviceId=${_service!.id}&employeeId=${_employee!.id}&date=$_date');
+          '/$slug/booking/availability?serviceId=${_service!.id}$empParamS&date=$_date');
       setState(() => _slots = (data['slots'] as List).map((e) => e.toString()).toList());
     } catch (_) {}
   }
@@ -108,17 +114,21 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       setState(() => _error = 'El nombre es obligatorio');
       return;
     }
+    if (_phoneCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'El teléfono es obligatorio');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
       final slug = widget.slug;
       await ApiService.pubPost('/$slug/booking', {
         'serviceId': _service!.id,
-        'employeeId': _employee!.id,
+        'employeeId': _employee?.id,
         'date': _date,
         'startTime': '$_slot:00',
         'customerName': _nameCtrl.text.trim(),
         'customerEmail': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-        'customerPhone': _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        'customerPhone': _phoneCtrl.text.trim(),
         'notes': _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
         'fieldValues': [],
       });
@@ -406,7 +416,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           _fieldLabel('Email'),
           TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: _inputDec('tu@email.com')),
           const SizedBox(height: 12),
-          _fieldLabel('Teléfono'),
+          _fieldLabel('Teléfono *'),
           TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, decoration: _inputDec('6XX XXX XXX')),
           const SizedBox(height: 12),
           _fieldLabel('Notas (opcional)'),

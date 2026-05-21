@@ -55,6 +55,7 @@ public class ServiceServiceImpl implements ServiceService {
                 .capacity(request.capacity())
                 .chairTime(request.chairTime())
                 .price(request.price())
+                .defaultEmployeeId(request.defaultEmployeeId())
                 .active(true)
                 .build();
 
@@ -72,6 +73,7 @@ public class ServiceServiceImpl implements ServiceService {
         service.setCapacity(request.capacity());
         service.setChairTime(request.chairTime());
         service.setPrice(request.price());
+        service.setDefaultEmployeeId(request.defaultEmployeeId());
 
         return toResponse(serviceRepository.save(service));
     }
@@ -102,6 +104,6 @@ public class ServiceServiceImpl implements ServiceService {
                 .map(f -> new CustomFieldResponse(f.getId(), f.getLabel(), f.getFieldType(), f.getRequired(), f.getFieldOrder()))
                 .toList();
 
-        return new ServiceResponse(service.getId(), service.getName(), service.getDuration(), service.getCapacity(), service.getChairTime(), service.getPrice(), service.getActive(), fields);
+        return new ServiceResponse(service.getId(), service.getName(), service.getDuration(), service.getCapacity(), service.getChairTime(), service.getPrice(), service.getActive(), fields, service.getDefaultEmployeeId());
     }
 }

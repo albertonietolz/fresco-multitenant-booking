@@ -25,7 +25,6 @@ public class Booking {
     @Column(nullable = false)
     private Long tenantId;
 
-    @Column(nullable = false)
     private Long employeeId;
 
     @Column(nullable = false)

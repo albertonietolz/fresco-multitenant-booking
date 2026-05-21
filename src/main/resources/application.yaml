@@ -2,6 +2,9 @@ spring:
   application:
     name: fresco
 
+  config:
+    import: optional:file:.env[.properties]
+
   servlet:
     multipart:
       max-file-size: 20MB
@@ -9,21 +12,38 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5433/fresco
-    username: postgres
-    password: 1234
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:1234}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
+
+  web:
+    error:
+      include-message: always
+      include-exception: true
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 jwt:
-  secret: fresco-secret-key-multitenant-booking-platform-2026
+  secret: ${JWT_SECRET:fresco-secret-key-multitenant-booking-platform-2026}
   expiration: 86400000
 
 ---

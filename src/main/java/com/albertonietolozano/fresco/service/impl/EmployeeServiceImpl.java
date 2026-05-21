@@ -25,7 +25,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public List<EmployeeResponse> getAll() {
-        return employeeRepository.findAllByTenantIdAndActiveTrue(TenantContext.getTenantId())
+        return employeeRepository.findAllByTenantId(TenantContext.getTenantId())
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -85,6 +85,15 @@ public class EmployeeServiceImpl implements EmployeeService {
             employee.setPinHash(passwordEncoder.encode(request.pin()));
         }
 
+        return toResponse(employeeRepository.save(employee));
+    }
+
+    @Override
+    public EmployeeResponse toggleActive(Long id) {
+        Employee employee = employeeRepository.findById(id)
+                .filter(e -> e.getTenantId().equals(TenantContext.getTenantId()))
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        employee.setActive(!employee.getActive());
         return toResponse(employeeRepository.save(employee));
     }
 

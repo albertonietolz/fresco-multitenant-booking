@@ -2,8 +2,9 @@ package com.albertonietolozano.fresco;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 
-// Punto de entrada de la aplicación Spring Boot.
+@EnableAsync
 @SpringBootApplication
 public class FrescoApplication {
 

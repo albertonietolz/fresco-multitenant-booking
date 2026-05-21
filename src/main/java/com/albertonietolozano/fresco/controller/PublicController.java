@@ -83,7 +83,7 @@ public class PublicController {
     @GetMapping("/availability")
     public ResponseEntity<AvailabilityResponse> getAvailability(
             @PathVariable String slug,
-            @RequestParam Long employeeId,
+            @RequestParam(required = false) Long employeeId,
             @RequestParam Long serviceId,
             @RequestParam LocalDate date
     ) {
@@ -113,7 +113,7 @@ public class PublicController {
     @GetMapping("/availability/month")
     public ResponseEntity<List<String>> getMonthAvailability(
             @PathVariable String slug,
-            @RequestParam Long employeeId,
+            @RequestParam(required = false) Long employeeId,
             @RequestParam Long serviceId,
             @RequestParam int year,
             @RequestParam int month

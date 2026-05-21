@@ -40,4 +40,7 @@ public class Service {
 
     @Column(nullable = false)
     private Boolean active;
+
+    @Column
+    private Long defaultEmployeeId;
 }

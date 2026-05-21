@@ -65,7 +65,7 @@ class _HoursScreenState extends State<HoursScreen> {
         _loading = false;
       });
 
-      if (_selected != null) await _loadEmployeeHours(_selected!.id);
+      if (_selected != null) await _loadEmployeeHours(_selected!.id!);
     } catch (_) {
       setState(() => _loading = false);
     }
@@ -175,7 +175,7 @@ class _HoursScreenState extends State<HoursScreen> {
                   child: GestureDetector(
                     onTap: () async {
                       setState(() { _selected = e; _msg = null; });
-                      await _loadEmployeeHours(e.id);
+                      await _loadEmployeeHours(e.id!);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

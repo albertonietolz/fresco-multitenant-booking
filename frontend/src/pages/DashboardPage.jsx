@@ -767,6 +767,36 @@ const styles = `
   .alert.err { background: #fef2f2; border: 1px solid #fca5a5; color: var(--error); }
   .alert.ok { background: #f0fdf4; border: 1px solid #86efac; color: var(--success); }
 
+  /* ── NO-HOURS BANNER ── */
+  .no-hours-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+    color: #92400e;
+  }
+  .no-hours-banner .nhb-icon { font-size: 1.1rem; flex-shrink: 0; }
+  .no-hours-banner .nhb-text { flex: 1; line-height: 1.4; }
+  .no-hours-banner .nhb-text strong { display: block; font-weight: 600; margin-bottom: 2px; }
+  .no-hours-banner .nhb-btn {
+    flex-shrink: 0;
+    background: #d97706;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .no-hours-banner .nhb-btn:hover { background: #b45309; }
+
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   .modal-wide { max-width: 540px; }
@@ -1708,6 +1738,21 @@ const styles = `
     cursor: pointer;
   }
 
+  /* ── STATUS BADGE ── */
+  .status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .status-badge.pending  { background: rgba(201,151,58,0.18); color: #92640a; border: 1px solid rgba(201,151,58,0.4); }
+  .status-badge.confirmed { background: rgba(21,128,61,0.14); color: #15803d; border: 1px solid rgba(21,128,61,0.35); }
+  .status-badge.cancelled { background: rgba(220,38,38,0.12); color: #dc2626; border: 1px solid rgba(220,38,38,0.3); }
+
   /* ── BUSINESS HOURS LIST ── */
   .bh-list { display: flex; flex-direction: column; gap: 8px; }
 
@@ -1946,6 +1991,7 @@ export default function DashboardPage() {
   const [tenantName, setTenantName] = useState(
     localStorage.getItem("tenantName") || "",
   );
+  const [hasBusinessHours, setHasBusinessHours] = useState(null);
   const userName = localStorage.getItem("userName") || "Usuario";
   const initials = userName
     .split(" ")
@@ -1961,6 +2007,9 @@ export default function DashboardPage() {
         localStorage.setItem("tenantName", d.name);
       })
       .catch(() => {});
+    api("/api/tenant/hours")
+      .then((data) => setHasBusinessHours(Array.isArray(data) && data.length > 0))
+      .catch(() => setHasBusinessHours(true));
   }, []);
 
   const logout = () => {
@@ -1980,7 +2029,6 @@ export default function DashboardPage() {
     { id: "services",  label: "Servicios" },
     { id: "employees", label: "Empleados" },
     { id: "hours",     label: "Horarios" },
-    { id: "bookings",  label: "Reservas" },
     { id: "suscripcion", label: "Suscripción" },
   ];
 
@@ -1991,7 +2039,6 @@ export default function DashboardPage() {
     services:    "Servicios",
     employees:   "Empleados",
     hours:       "Horarios",
-    bookings:    "Reservas",
     suscripcion: "Suscripción",
   };
 
@@ -2052,13 +2099,24 @@ export default function DashboardPage() {
             </div>
           </header>
           <div className="content">
+            {hasBusinessHours === false && section !== "empresa" && (
+              <div className="no-hours-banner">
+                <span className="nhb-icon">⚠️</span>
+                <div className="nhb-text">
+                  <strong>Tu negocio no tiene horario configurado</strong>
+                  Los clientes no podrán ver disponibilidad ni hacer reservas hasta que lo configures.
+                </div>
+                <button className="nhb-btn" onClick={() => goSection("empresa")}>
+                  Configurar horario
+                </button>
+              </div>
+            )}
             {section === "overview"  && <Overview setSection={goSection} />}
             {section === "planning"  && <Planning />}
-            {section === "empresa"   && <Empresa />}
+            {section === "empresa"   && <Empresa onHoursSaved={() => setHasBusinessHours(true)} />}
             {section === "services"  && <Services />}
             {section === "employees" && <Employees />}
             {section === "hours"     && <Hours />}
-            {section === "bookings"  && <Bookings />}
             {section === "suscripcion" && <Subscription />}
           </div>
         </div>
@@ -2547,7 +2605,7 @@ function ClosureCalendar({
 }
 
 /* ── EMPRESA ── */
-function Empresa() {
+function Empresa({ onHoursSaved }) {
   const [tenant, setTenant] = useState(null);
   const [form, setForm] = useState({
     name: "",
@@ -2646,6 +2704,7 @@ function Empresa() {
         body: JSON.stringify(payload),
       });
       setBhMsg({ type: "ok", text: "Horario guardado." });
+      if (payload.length > 0 && onHoursSaved) onHoursSaved();
     } catch {
       setBhMsg({ type: "err", text: "Error al guardar el horario." });
     }
@@ -2970,7 +3029,8 @@ function Services() {
   const [modal, setModal] = useState(false);
   const [step, setStep] = useState("create");
   const [editingService, setEditingService] = useState(null);
-  const [form, setForm] = useState({ name: "", duration: "", capacity: "", chairTime: "", price: "" });
+  const [serviceEmployees, setServiceEmployees] = useState([]);
+  const [form, setForm] = useState({ name: "", duration: "", capacity: "", chairTime: "", price: "", defaultEmployeeId: "" });
   const [serviceMode, setServiceMode] = useState("sequential");
   const [sinLimite, setSinLimite] = useState(false);
   const [showPrice, setShowPrice] = useState(false);
@@ -2995,6 +3055,7 @@ function Services() {
       .catch(() => {});
   useEffect(() => {
     load();
+    api("/api/employees").then(setServiceEmployees).catch(() => {});
   }, []);
 
   const loadFields = (serviceId) =>
@@ -3004,7 +3065,7 @@ function Services() {
 
   const openCreate = () => {
     setEditingService(null);
-    setForm({ name: "", duration: "", capacity: "", chairTime: "", price: "" });
+    setForm({ name: "", duration: "", capacity: "", chairTime: "", price: "", defaultEmployeeId: "" });
     setServiceMode("sequential");
     setSinLimite(false);
     setShowPrice(false);
@@ -3018,7 +3079,7 @@ function Services() {
   const openEdit = async (svc) => {
     setEditingService(svc);
     const hasCapacity = svc.capacity != null;
-    setForm({ name: svc.name, duration: String(svc.duration), capacity: (hasCapacity && svc.capacity > 0) ? String(svc.capacity) : "", chairTime: svc.chairTime ? String(svc.chairTime) : "", price: svc.price != null ? String(svc.price) : "" });
+    setForm({ name: svc.name, duration: String(svc.duration), capacity: (hasCapacity && svc.capacity > 0) ? String(svc.capacity) : "", chairTime: svc.chairTime ? String(svc.chairTime) : "", price: svc.price != null ? String(svc.price) : "", defaultEmployeeId: svc.defaultEmployeeId ? String(svc.defaultEmployeeId) : "" });
     setServiceMode(hasCapacity ? "capacity" : svc.chairTime ? "split" : "sequential");
     setSinLimite(hasCapacity && svc.capacity === 0);
     setShowPrice(svc.price != null);
@@ -3045,6 +3106,7 @@ function Services() {
           : null,
         chairTime: serviceMode === "split" && form.chairTime ? Number(form.chairTime) : null,
         price: showPrice && form.price ? Number(form.price) : null,
+        defaultEmployeeId: form.defaultEmployeeId ? Number(form.defaultEmployeeId) : null,
       };
       const svc = editingService
         ? await api(`/api/services/${editingService.id}`, {
@@ -3301,6 +3363,24 @@ function Services() {
                     )}
                   </div>
 
+                  {serviceEmployees.length > 0 && (
+                    <div className="form-field">
+                      <label>Empleado asignado por defecto</label>
+                      <select
+                        value={form.defaultEmployeeId}
+                        onChange={(e) => setForm((p) => ({ ...p, defaultEmployeeId: e.target.value }))}
+                      >
+                        <option value="">Sin asignar (cualquier empleado)</option>
+                        {serviceEmployees.map((e) => (
+                          <option key={e.id} value={e.id}>{e.name}</option>
+                        ))}
+                      </select>
+                      <p style={{ fontSize: "0.74rem", color: "var(--ink-muted)", marginTop: "4px", lineHeight: 1.5 }}>
+                        Las reservas de este servicio se asignarán siempre a este empleado.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="modal-actions">
                     <button
                       type="button"
@@ -3449,6 +3529,38 @@ function Services() {
   );
 }
 
+function EmpServicesBadge({ serviceIds, allServices }) {
+  const [open, setOpen] = useState(false);
+  if (!serviceIds || serviceIds.length === 0)
+    return <span style={{ color: "var(--blue)", fontWeight: 500 }}>Todos</span>;
+  const names = serviceIds.map((sid) => allServices.find((s) => s.id === sid)?.name).filter(Boolean);
+  return (
+    <div style={{ position: "relative", display: "inline-block" }}>
+      <button
+        className="btn-sm"
+        style={{ fontSize: "0.72rem" }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {names.length} servicio{names.length !== 1 ? "s" : ""} {open ? "▲" : "▼"}
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
+          background: "var(--white)", border: "1px solid var(--stone-border)",
+          borderRadius: "10px", padding: "8px 0", minWidth: "180px",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.10)"
+        }}>
+          {names.map((n, i) => (
+            <div key={i} style={{ padding: "6px 14px", fontSize: "0.78rem", color: "var(--ink)", borderBottom: i < names.length - 1 ? "1px solid var(--stone)" : "none" }}>
+              {n}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── EMPLOYEES ── */
 function Employees() {
   const [items, setItems] = useState([]);
@@ -3519,12 +3631,13 @@ function Employees() {
     }
   };
 
-  const del = async (id) => {
+  const toggleActive = async (emp) => {
     try {
-      await api(`/api/employees/${id}`, { method: "DELETE" });
+      await api(`/api/employees/${emp.id}/active`, { method: "PATCH" });
       load();
+      setMsg({ type: "ok", text: emp.active ? `${emp.name} desactivado.` : `${emp.name} activado.` });
     } catch {
-      setMsg({ type: "err", text: "Error al eliminar." });
+      setMsg({ type: "err", text: "Error al cambiar estado." });
     }
   };
 
@@ -3568,18 +3681,12 @@ function Employees() {
             </thead>
             <tbody>
               {items.map((e) => (
-                <tr key={e.id}>
+                <tr key={e.id} style={!e.active ? { opacity: 0.55 } : undefined}>
                   <td><strong>{e.name}</strong></td>
                   <td>{e.email}</td>
                   <td>{e.phone}</td>
-                  <td style={{ fontSize: "0.78rem", color: "var(--ink-muted)" }}>
-                    {!e.serviceIds || e.serviceIds.length === 0
-                      ? <span style={{ color: "var(--blue)", fontWeight: 500 }}>Todos</span>
-                      : e.serviceIds.map((sid) => {
-                          const svc = allServices.find((s) => s.id === sid);
-                          return svc ? svc.name : sid;
-                        }).join(", ")
-                    }
+                  <td style={{ fontSize: "0.78rem" }}>
+                    <EmpServicesBadge serviceIds={e.serviceIds} allServices={allServices} />
                   </td>
                   <td style={{ fontSize: "0.76rem", fontFamily: "monospace", letterSpacing: "0.1em" }}>
                     {e.pin
@@ -3595,8 +3702,11 @@ function Employees() {
                     <button className="btn-sm" onClick={() => openEdit(e)}>
                       Editar
                     </button>
-                    <button className="btn-danger" onClick={() => del(e.id)}>
-                      Eliminar
+                    <button
+                      className={e.active ? "btn-danger" : "btn-sm"}
+                      onClick={() => toggleActive(e)}
+                    >
+                      {e.active ? "Desactivar" : "Activar"}
                     </button>
                   </td>
                 </tr>
@@ -3897,28 +4007,30 @@ function Hours() {
 
 /* ── PLANNING ── */
 function Planning() {
-  const [bookings, setBookings] = useState([]);
+  const [items, setItems] = useState([]);
   const [services, setServices] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [modal, setModal] = useState(false);
+  const [bStep, setBStep] = useState(1);
+  const [bForm, setBForm] = useState({ serviceId: "", employeeId: "", date: "", startTime: "", customerName: "", customerEmail: "", customerPhone: "", notes: "" });
+  const [slots, setSlots] = useState([]);
+  const [msg, setMsg] = useState(null);
+  const [onDutyBooking, setOnDutyBooking] = useState(null);
+  const [onDutyList, setOnDutyList] = useState([]);
+  const [onDutyLoading, setOnDutyLoading] = useState(false);
+  const [editBooking, setEditBooking] = useState(null);
+  const [editForm, setEditForm] = useState({ customerName: "", customerEmail: "", customerPhone: "", notes: "", status: "PENDING" });
 
+  const load = () => api("/api/bookings").then(setItems).catch(() => {});
   useEffect(() => {
-    api("/api/bookings").then(setBookings).catch(() => {});
+    load();
     api("/api/services").then(setServices).catch(() => {});
     api("/api/employees").then(setEmployees).catch(() => {});
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);
-
-  const upcoming = bookings
-    .filter((b) => b.date >= today && b.status !== "CANCELLED")
-    .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || "").localeCompare(b.startTime || ""));
-
-  const byDay = {};
-  upcoming.forEach((b) => {
-    if (!byDay[b.date]) byDay[b.date] = [];
-    byDay[b.date].push(b);
-  });
-
   const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   const DOW_ES = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
   const fmtDate = (ds) => {
@@ -3926,79 +4038,317 @@ function Planning() {
     const dt = new Date(Number(y), Number(m) - 1, Number(d));
     return `${DOW_ES[dt.getDay()]}, ${Number(d)} de ${MONTHS_ES[Number(m) - 1]}`;
   };
-
   const STATUS_ES = { PENDING: "Pendiente", CONFIRMED: "Confirmada", CANCELLED: "Cancelada" };
+  const fmtSlot = (s) => typeof s === "string" ? s.slice(0, 5) : `${String(s[0]).padStart(2,"0")}:${String(s[1]).padStart(2,"0")}`;
+  const rawSlot = (s) => typeof s === "string" ? s : `${String(s[0]).padStart(2,"0")}:${String(s[1]).padStart(2,"0")}:00`;
 
-  if (Object.keys(byDay).length === 0) {
-    return <div className="empty">No hay reservas próximas pendientes o confirmadas.</div>;
-  }
+  const filtered = items
+    .filter((b) => !selectedDate || b.date === selectedDate)
+    .filter((b) => statusFilter === "ALL" || b.status === statusFilter)
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime||"").localeCompare(b.startTime||""));
+
+  const byDay = {};
+  filtered.forEach((b) => { if (!byDay[b.date]) byDay[b.date] = []; byDay[b.date].push(b); });
+
+  const changeStatus = async (id, status) => {
+    try { await api(`/api/bookings/${id}/status?status=${status}`, { method: "PATCH" }); load(); }
+    catch { setMsg({ type: "err", text: "Error al actualizar." }); }
+  };
+
+  const openOnDuty = async (b) => {
+    if (b.employeeId != null) return;
+    setOnDutyBooking(b); setOnDutyList([]); setOnDutyLoading(true);
+    try { setOnDutyList(await api(`/api/bookings/${b.id}/on-duty`)); }
+    catch { setOnDutyList([]); }
+    finally { setOnDutyLoading(false); }
+  };
+
+  const openEdit = (b) => {
+    setEditForm({ customerName: b.customerName || "", customerEmail: b.customerEmail || "", customerPhone: b.customerPhone || "", notes: b.notes || "", status: b.status });
+    setEditBooking(b);
+  };
+
+  const saveEdit = async () => {
+    try {
+      await api(`/api/bookings/${editBooking.id}`, { method: "PATCH", body: JSON.stringify({ customerName: editForm.customerName, customerEmail: editForm.customerEmail || null, customerPhone: editForm.customerPhone || null, notes: editForm.notes || null, status: editForm.status }) });
+      setEditBooking(null); load(); setMsg({ type: "ok", text: "Reserva actualizada." });
+    } catch { setMsg({ type: "err", text: "Error al guardar cambios." }); }
+  };
+
+  const openModal = () => {
+    setBForm({ serviceId: "", employeeId: "", date: "", startTime: "", customerName: "", customerEmail: "", customerPhone: "", notes: "" });
+    setSlots([]); setBStep(1); setModal(true);
+  };
+
+  const loadSlots = async (serviceId, employeeId, date) => {
+    try { const d = await api(`/api/bookings/availability?serviceId=${serviceId}&employeeId=${employeeId}&date=${date}`); setSlots(d.slots || []); }
+    catch { setSlots([]); }
+  };
+
+  const submitBooking = async () => {
+    try {
+      const startTime = bForm.startTime.length === 5 ? bForm.startTime + ":00" : bForm.startTime;
+      await api("/api/bookings", { method: "POST", body: JSON.stringify({ serviceId: Number(bForm.serviceId), employeeId: Number(bForm.employeeId), date: bForm.date, startTime, customerName: bForm.customerName, customerEmail: bForm.customerEmail || null, customerPhone: bForm.customerPhone || null, notes: bForm.notes || null, fieldValues: [] }) });
+      setModal(false); load(); setMsg({ type: "ok", text: "Reserva creada correctamente." });
+    } catch { setMsg({ type: "err", text: "Error al crear la reserva." }); }
+  };
 
   return (
-    <>
-      <div className="section-header" style={{ marginBottom: "20px" }}>
-        <div className="section-title">Agenda desde hoy</div>
-        <span style={{ fontSize: "0.8rem", color: "var(--ink-muted)" }}>
-          {upcoming.length} reserva{upcoming.length !== 1 ? "s" : ""} próximas
-        </span>
+    <div className="bookings-section">
+      {msg && <div className={`alert ${msg.type}`}>{msg.text}</div>}
+      <div className="section-header">
+        <div className="section-title">Planificación</div>
+        <button className="btn-primary" onClick={openModal}>+ Nueva reserva</button>
       </div>
-      {Object.entries(byDay).map(([date, dayBookings]) => (
-        <div key={date} style={{ marginBottom: "24px" }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: "12px",
-            marginBottom: "10px",
-          }}>
-            <div style={{
-              background: date === today ? "var(--blue)" : "var(--stone-border)",
-              color: date === today ? "#fff" : "var(--ink-muted)",
-              borderRadius: "6px", padding: "2px 10px",
-              fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.06em",
-              textTransform: "uppercase", flexShrink: 0,
-            }}>
-              {date === today ? "Hoy" : fmtDate(date)}
-            </div>
-            <div style={{ flex: 1, height: "1px", background: "var(--stone-border)" }} />
-            <span style={{ fontSize: "0.72rem", color: "var(--ink-muted)", flexShrink: 0 }}>
-              {dayBookings.length} cita{dayBookings.length !== 1 ? "s" : ""}
-            </span>
+
+      <div className="bookings-layout">
+        <CalendarMini bookings={items} selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setStatusFilter("ALL"); }} />
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Filtros de estado */}
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "14px" }}>
+            {[["ALL","Todas"],["PENDING","Pendientes"],["CONFIRMED","Confirmadas"],["CANCELLED","Canceladas"]].map(([v,l]) => (
+              <button key={v} onClick={() => setStatusFilter(v)} style={{
+                padding: "4px 12px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", border: "1.5px solid",
+                background: statusFilter === v ? "var(--blue)" : "var(--white)",
+                color: statusFilter === v ? "#fff" : "var(--ink-muted)",
+                borderColor: statusFilter === v ? "var(--blue)" : "var(--stone-border)",
+              }}>{l}</button>
+            ))}
+            {selectedDate && (
+              <button className="btn-sm" onClick={() => setSelectedDate(null)} style={{ marginLeft: "auto" }}>
+                × {selectedDate} — Ver todo
+              </button>
+            )}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {dayBookings.map((b) => {
-              const svc = services.find((s) => s.id === b.serviceId);
-              const emp = employees.find((e) => e.id === b.employeeId);
-              return (
-                <div key={b.id} style={{
-                  background: "var(--white)", border: "1.5px solid var(--stone-border)",
-                  borderLeft: `4px solid ${b.status === "CONFIRMED" ? "var(--success)" : "var(--ochre)"}`,
-                  borderRadius: "8px", padding: "12px 16px",
-                  display: "flex", alignItems: "center", gap: "16px",
-                  flexWrap: "wrap",
-                }}>
-                  <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: "1rem", color: "var(--blue)", minWidth: "44px" }}>
-                    {b.startTime?.slice(0, 5) || "—"}
+
+          {/* Agenda agrupada por día */}
+          {Object.keys(byDay).length === 0 ? (
+            <div className="empty">No hay reservas{selectedDate ? " este día" : " con estos filtros"}.</div>
+          ) : (
+            Object.entries(byDay).map(([date, dayBookings]) => (
+              <div key={date} style={{ marginBottom: "24px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
+                  <div style={{
+                    background: date === today ? "var(--blue)" : "var(--stone-border)",
+                    color: date === today ? "#fff" : "var(--ink-muted)",
+                    borderRadius: "6px", padding: "2px 10px",
+                    fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", flexShrink: 0,
+                  }}>
+                    {date === today ? "Hoy" : fmtDate(date)}
                   </div>
-                  <div style={{ flex: 1, minWidth: "160px" }}>
-                    <div style={{ fontWeight: 500, fontSize: "0.88rem" }}>{b.customerName}</div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>
-                      {svc?.name || "—"}{emp ? ` · ${emp.name}` : ""}
-                    </div>
-                    {(b.customerPhone || b.customerEmail) && (
-                      <div style={{ fontSize: "0.72rem", color: "var(--ink-muted)", marginTop: "2px" }}>
-                        {b.customerPhone && <span>{b.customerPhone}</span>}
-                        {b.customerPhone && b.customerEmail && <span> · </span>}
-                        {b.customerEmail && <span>{b.customerEmail}</span>}
-                      </div>
-                    )}
-                  </div>
-                  <span className={`badge badge-${b.status.toLowerCase()}`}>
-                    {STATUS_ES[b.status]}
+                  <div style={{ flex: 1, height: "1px", background: "var(--stone-border)" }} />
+                  <span style={{ fontSize: "0.72rem", color: "var(--ink-muted)", flexShrink: 0 }}>
+                    {dayBookings.length} cita{dayBookings.length !== 1 ? "s" : ""}
                   </span>
                 </div>
-              );
-            })}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {dayBookings.map((b) => {
+                    const svc = services.find((s) => s.id === b.serviceId);
+                    const emp = employees.find((e) => e.id === b.employeeId);
+                    return (
+                      <div key={b.id} style={{
+                        background: "var(--white)", border: "1.5px solid var(--stone-border)",
+                        borderLeft: `4px solid ${b.status === "CONFIRMED" ? "var(--success)" : b.status === "CANCELLED" ? "var(--error)" : "var(--ochre)"}`,
+                        borderRadius: "8px", padding: "12px 16px",
+                        display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap",
+                      }}>
+                        <div style={{ fontFamily: "monospace", fontWeight: 700, fontSize: "1rem", color: "var(--blue)", minWidth: "44px" }}>
+                          {b.startTime?.slice(0, 5) || "—"}
+                        </div>
+                        <div style={{ flex: 1, minWidth: "160px" }}>
+                          <div style={{ fontWeight: 500, fontSize: "0.88rem" }}>{b.customerName}</div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>
+                            {svc?.name || "—"}
+                            {b.employeeId != null
+                              ? emp ? ` · ${emp.name}` : ""
+                              : <button className="btn-sm" style={{ fontSize: "0.7rem", marginLeft: "6px" }} onClick={() => openOnDuty(b)}>Ver en turno</button>
+                            }
+                          </div>
+                          {(b.customerPhone || b.customerEmail) && (
+                            <div style={{ fontSize: "0.72rem", color: "var(--ink-muted)", marginTop: "2px" }}>
+                              {b.customerPhone && <span>{b.customerPhone}</span>}
+                              {b.customerPhone && b.customerEmail && <span> · </span>}
+                              {b.customerEmail && <span>{b.customerEmail}</span>}
+                            </div>
+                          )}
+                        </div>
+                        <span className={`status-badge ${b.status === "CONFIRMED" ? "confirmed" : b.status === "CANCELLED" ? "cancelled" : "pending"}`}>
+                          {STATUS_ES[b.status]}
+                        </span>
+                        <button className="btn-sm" style={{ fontSize: "0.75rem", padding: "4px 10px" }} onClick={() => openEdit(b)}>Editar</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Modal nueva reserva */}
+      {modal && (
+        <div className="overlay" onClick={() => setModal(false)}>
+          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">Nueva reserva</div>
+            <div className="wizard-steps">
+              {["Servicio","Fecha","Hora","Cliente"].map((s, i) => (
+                <div key={s} className={`wizard-step${bStep===i+1?" active":bStep>i+1?" done":""}`}>
+                  <span className="step-num">{bStep>i+1?"✓":i+1}</span>
+                  <span className="step-label">{s}</span>
+                </div>
+              ))}
+            </div>
+            {bStep === 1 && (<>
+              <div className="form-field"><label>Servicio</label>
+                <select value={bForm.serviceId} onChange={(e) => setBForm((p) => ({ ...p, serviceId: e.target.value }))}>
+                  <option value="">— Elige un servicio —</option>
+                  {services.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.name} ({s.duration} min)</option>)}
+                </select>
+              </div>
+              <div className="form-field"><label>Profesional</label>
+                <select value={bForm.employeeId} onChange={(e) => setBForm((p) => ({ ...p, employeeId: e.target.value }))}>
+                  <option value="">— Elige un profesional —</option>
+                  {employees.filter((e) => e.active).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button className="btn-cancel" onClick={() => setModal(false)}>Cancelar</button>
+                <button className="btn-primary" onClick={() => setBStep(2)} disabled={!bForm.serviceId || !bForm.employeeId}>Siguiente →</button>
+              </div>
+            </>)}
+            {bStep === 2 && (<>
+              <div className="form-field"><label>Fecha</label>
+                <input type="date" value={bForm.date} min={today} onChange={(e) => setBForm((p) => ({ ...p, date: e.target.value, startTime: "" }))} />
+              </div>
+              <div className="modal-actions">
+                <button className="btn-cancel" onClick={() => setBStep(1)}>← Atrás</button>
+                <button className="btn-primary" onClick={async () => { await loadSlots(bForm.serviceId, bForm.employeeId, bForm.date); setBStep(3); }} disabled={!bForm.date}>Ver disponibilidad →</button>
+              </div>
+            </>)}
+            {bStep === 3 && (<>
+              <p style={{ fontSize: "0.82rem", color: "var(--ink-muted)", marginBottom: "12px" }}>Huecos disponibles · {bForm.date}</p>
+              {slots.length === 0
+                ? <div className="empty" style={{ padding: "20px" }}>Sin disponibilidad este día.</div>
+                : <div className="slot-grid">{slots.map((slot, i) => { const t=fmtSlot(slot); const raw=rawSlot(slot); return (
+                    <button key={i} className={`slot-btn${bForm.startTime===raw||bForm.startTime.slice(0,5)===t?" selected":""}`} onClick={() => setBForm((p) => ({ ...p, startTime: raw }))}>{t}</button>
+                  );})}</div>
+              }
+              <div className="modal-actions">
+                <button className="btn-cancel" onClick={() => setBStep(2)}>← Atrás</button>
+                <button className="btn-primary" onClick={() => setBStep(4)} disabled={!bForm.startTime}>Siguiente →</button>
+              </div>
+            </>)}
+            {bStep === 4 && (<>
+              <div className="form-field"><label>Nombre del cliente</label>
+                <input value={bForm.customerName} onChange={(e) => setBForm((p) => ({ ...p, customerName: e.target.value }))} />
+              </div>
+              <div className="two-col">
+                <div className="form-field"><label>Email</label>
+                  <input type="email" value={bForm.customerEmail} onChange={(e) => setBForm((p) => ({ ...p, customerEmail: e.target.value }))} />
+                </div>
+                <div className="form-field"><label>Teléfono</label>
+                  <input value={bForm.customerPhone} onChange={(e) => setBForm((p) => ({ ...p, customerPhone: e.target.value }))} />
+                </div>
+              </div>
+              <div className="form-field"><label>Notas</label>
+                <input value={bForm.notes} onChange={(e) => setBForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Observaciones adicionales…" />
+              </div>
+              <div className="modal-actions">
+                <button className="btn-cancel" onClick={() => setBStep(3)}>← Atrás</button>
+                <button className="btn-primary" onClick={submitBooking} disabled={!bForm.customerName}>Confirmar reserva</button>
+              </div>
+            </>)}
           </div>
         </div>
-      ))}
-    </>
+      )}
+
+      {/* Modal editar reserva */}
+      {editBooking && (
+        <div className="overlay" onClick={() => setEditBooking(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">Editar reserva</div>
+            <div style={{ fontSize: "0.78rem", color: "var(--ink-muted)", marginBottom: "16px" }}>
+              {editBooking.startTime?.slice(0,5)} · {services.find((s) => s.id === editBooking.serviceId)?.name} · {editBooking.date}
+            </div>
+            <div className="form-field"><label>Nombre del cliente</label>
+              <input value={editForm.customerName} onChange={(e) => setEditForm((p) => ({ ...p, customerName: e.target.value }))} />
+            </div>
+            <div className="two-col">
+              <div className="form-field"><label>Email</label>
+                <input type="email" value={editForm.customerEmail} onChange={(e) => setEditForm((p) => ({ ...p, customerEmail: e.target.value }))} />
+              </div>
+              <div className="form-field"><label>Teléfono</label>
+                <input value={editForm.customerPhone} onChange={(e) => setEditForm((p) => ({ ...p, customerPhone: e.target.value }))} />
+              </div>
+            </div>
+            <div className="form-field"><label>Notas</label>
+              <input value={editForm.notes} onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Observaciones adicionales…" />
+            </div>
+            <div className="form-field"><label>Estado</label>
+              <select className="status-select" value={editForm.status} onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}>
+                <option value="PENDING">Pendiente</option>
+                <option value="CONFIRMED">Confirmada</option>
+                <option value="CANCELLED">Cancelada</option>
+              </select>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setEditBooking(null)}>Cancelar</button>
+              <button className="btn-primary" onClick={saveEdit} disabled={!editForm.customerName}>Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal en turno */}
+      {onDutyBooking && (
+        <div className="overlay" onClick={() => setOnDutyBooking(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "420px", padding: 0, overflow: "hidden" }}>
+            {/* Cabecera azul */}
+            <div style={{ background: "var(--blue)", padding: "20px 24px" }}>
+              <div style={{ color: "#fff", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.7, marginBottom: "4px" }}>
+                Empleados en turno
+              </div>
+              <div style={{ color: "#fff", fontSize: "1rem", fontWeight: 600 }}>
+                {onDutyBooking.startTime?.slice(0,5)} · {services.find((s) => s.id===onDutyBooking.serviceId)?.name}
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.78rem", marginTop: "2px" }}>
+                {onDutyBooking.date}
+              </div>
+            </div>
+
+            {/* Cuerpo */}
+            <div style={{ padding: "20px 24px" }}>
+              {onDutyLoading ? (
+                <div style={{ color: "var(--ink-muted)", fontSize: "0.84rem", textAlign: "center", padding: "16px 0" }}>Cargando...</div>
+              ) : onDutyList.length === 0 ? (
+                <div style={{ color: "var(--ink-muted)", fontSize: "0.84rem", textAlign: "center", padding: "16px 0" }}>
+                  Ningún empleado tiene turno en este horario.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {onDutyList.map((e) => {
+                    const initials = e.name.trim().split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+                    return (
+                      <div key={e.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", background: "var(--stone)", borderRadius: "10px", border: "1px solid var(--stone-border)" }}>
+                        <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--blue)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.78rem", fontWeight: 700, flexShrink: 0 }}>
+                          {initials}
+                        </div>
+                        <span style={{ fontSize: "0.9rem", fontWeight: 500, color: "var(--ink)" }}>{e.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
+                <button className="btn-primary" onClick={() => setOnDutyBooking(null)}>Cerrar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -4180,7 +4530,7 @@ function CalendarMini({ bookings, selected, onSelect }) {
 }
 
 /* ── BOOKINGS ── */
-function Bookings() {
+function _BookingsDeleted_() {
   const [items, setItems] = useState([]);
   const [services, setServices] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -4199,6 +4549,24 @@ function Bookings() {
   });
   const [slots, setSlots] = useState([]);
   const [msg, setMsg] = useState(null);
+  const [onDutyBooking, setOnDutyBooking] = useState(null);
+  const [onDutyList, setOnDutyList] = useState([]);
+  const [onDutyLoading, setOnDutyLoading] = useState(false);
+
+  const openOnDuty = async (b) => {
+    if (b.employeeId != null) return;
+    setOnDutyBooking(b);
+    setOnDutyList([]);
+    setOnDutyLoading(true);
+    try {
+      const data = await api(`/api/bookings/${b.id}/on-duty`);
+      setOnDutyList(data);
+    } catch {
+      setOnDutyList([]);
+    } finally {
+      setOnDutyLoading(false);
+    }
+  };
 
   const load = () =>
     api("/api/bookings")
@@ -4386,8 +4754,18 @@ function Bookings() {
                           "—"}
                       </td>
                       <td>
-                        {employees.find((e) => e.id === b.employeeId)?.name ||
-                          "—"}
+                        {b.employeeId != null
+                          ? employees.find((e) => e.id === b.employeeId)?.name || "—"
+                          : (
+                            <button
+                              className="btn-sm"
+                              style={{ fontSize: "0.72rem" }}
+                              onClick={() => openOnDuty(b)}
+                            >
+                              Ver en turno
+                            </button>
+                          )
+                        }
                       </td>
                       <td>{b.date}</td>
                       <td>{b.startTime?.slice(0, 5)}</td>
@@ -4639,6 +5017,33 @@ function Bookings() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {onDutyBooking && (
+        <div className="overlay" onClick={() => setOnDutyBooking(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "380px" }}>
+            <div className="modal-title">Empleados en turno</div>
+            <p style={{ fontSize: "0.82rem", color: "var(--ink-muted)", marginBottom: "14px" }}>
+              {onDutyBooking.date} · {onDutyBooking.startTime?.slice(0, 5)} · {services.find((s) => s.id === onDutyBooking.serviceId)?.name}
+            </p>
+            {onDutyLoading ? (
+              <div style={{ color: "var(--ink-muted)", fontSize: "0.82rem" }}>Cargando...</div>
+            ) : onDutyList.length === 0 ? (
+              <div style={{ color: "var(--ink-muted)", fontSize: "0.82rem" }}>No hay empleados con horario en este turno.</div>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                {onDutyList.map((e) => (
+                  <li key={e.id} style={{ fontSize: "0.88rem", padding: "8px 12px", background: "var(--stone)", borderRadius: "8px", border: "1px solid var(--stone-border)" }}>
+                    {e.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="modal-actions" style={{ marginTop: "18px" }}>
+              <button className="btn-cancel" onClick={() => setOnDutyBooking(null)}>Cerrar</button>
+            </div>
           </div>
         </div>
       )}

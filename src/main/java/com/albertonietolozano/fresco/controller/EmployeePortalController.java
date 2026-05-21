@@ -187,7 +187,7 @@ public class EmployeePortalController {
 
         List<ScheduleResponse.EmployeeSchedule> empSchedules = employees.stream().map(emp -> {
             List<Booking> empBookings = dayBookings.stream()
-                    .filter(b -> b.getEmployeeId().equals(emp.getId()))
+                    .filter(b -> b.getEmployeeId() == null || b.getEmployeeId().equals(emp.getId()))
                     .toList();
 
             List<ScheduleResponse.BookingSlot> bookingSlots = empBookings.stream().map(booking -> {

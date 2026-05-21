@@ -1,6 +1,7 @@
 package com.albertonietolozano.fresco.service;
 
 import com.albertonietolozano.fresco.dto.request.BookingRequest;
+import com.albertonietolozano.fresco.dto.request.BookingUpdateRequest;
 import com.albertonietolozano.fresco.dto.response.AvailabilityResponse;
 import com.albertonietolozano.fresco.dto.response.BookingResponse;
 import com.albertonietolozano.fresco.model.enums.BookingStatus;
@@ -20,4 +21,6 @@ public interface BookingService {
     List<BookingResponse> getAllByTenant();
 
     BookingResponse updateStatus(Long id, BookingStatus status);
+
+    BookingResponse updateBooking(Long id, BookingUpdateRequest request);
 }

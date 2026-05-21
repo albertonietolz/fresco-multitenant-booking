@@ -38,8 +38,9 @@ class Service {
   final int? capacity;
   final double? price;
   final bool active;
+  final int? defaultEmployeeId;
 
-  Service({required this.id, required this.name, required this.duration, this.capacity, this.price, required this.active});
+  Service({required this.id, required this.name, required this.duration, this.capacity, this.price, required this.active, this.defaultEmployeeId});
 
   factory Service.fromJson(Map<String, dynamic> j) => Service(
         id: j['id'],
@@ -48,11 +49,12 @@ class Service {
         capacity: j['capacity'],
         price: j['price'] != null ? (j['price'] as num).toDouble() : null,
         active: j['active'] ?? true,
+        defaultEmployeeId: j['defaultEmployeeId'],
       );
 }
 
 class Employee {
-  final int id;
+  final int? id;
   final String name;
   final String? email;
   final String? phone;
@@ -61,7 +63,7 @@ class Employee {
   final bool hasPinSet;
   final String? pin;
 
-  Employee({required this.id, required this.name, this.email, this.phone, required this.active, required this.serviceIds, required this.hasPinSet, this.pin});
+  Employee({this.id, required this.name, this.email, this.phone, required this.active, required this.serviceIds, required this.hasPinSet, this.pin});
 
   factory Employee.fromJson(Map<String, dynamic> j) => Employee(
         id: j['id'],

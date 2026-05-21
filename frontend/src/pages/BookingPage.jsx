@@ -866,8 +866,10 @@ export default function BookingPage() {
       .then((data) => {
         const active = data.filter((e) => e.active);
         setEmployees(active);
-        if (!tenant.allowEmployeeChoice || active.length === 1) {
-          // Auto-asignar primer empleado disponible sin mostrar selección
+        if (!tenant.allowEmployeeChoice) {
+          setEmployee({ id: null });
+          setStep(3);
+        } else if (active.length === 1) {
           setEmployee(active[0] || null);
           setStep(active.length > 0 ? 3 : 2);
         } else {
@@ -881,7 +883,8 @@ export default function BookingPage() {
     if (!service || !employee || !date) return;
     setSlotsLoading(true);
     setSlots([]);
-    pub(`/${slug}/booking/availability?serviceId=${service.id}&employeeId=${employee.id}&date=${date}`)
+    const empParam = employee.id != null ? `&employeeId=${employee.id}` : '';
+    pub(`/${slug}/booking/availability?serviceId=${service.id}${empParam}&date=${date}`)
       .then((d) => setSlots(d.slots || []))
       .catch(() => setSlots([]))
       .finally(() => setSlotsLoading(false));
@@ -891,7 +894,8 @@ export default function BookingPage() {
     if (!service || !employee) return;
     setAvailDates(null);
     setCalLoading(true);
-    pub(`/${slug}/booking/availability/month?serviceId=${service.id}&employeeId=${employee.id}&year=${calYear}&month=${calMonth}`)
+    const empParamM = employee.id != null ? `&employeeId=${employee.id}` : '';
+    pub(`/${slug}/booking/availability/month?serviceId=${service.id}${empParamM}&year=${calYear}&month=${calMonth}`)
       .then((dates) => setAvailDates(new Set(dates)))
       .catch(() => setAvailDates(new Set()))
       .finally(() => setCalLoading(false));
@@ -909,6 +913,7 @@ export default function BookingPage() {
 
   const submit = async () => {
     if (!form.customerName.trim()) { setError("El nombre es obligatorio."); return; }
+    if (!form.customerPhone.trim()) { setError("El teléfono es obligatorio."); return; }
     setSubmitting(true); setError(null);
     try {
       const result = await pubPost(`/${slug}/booking`, {
@@ -924,7 +929,7 @@ export default function BookingPage() {
       });
       setBooked(result);
       setStep(5);
-    } catch { setError("Error al confirmar la reserva. Inténtalo de nuevo."); }
+    } catch (err) { setError("Error al confirmar la reserva: " + (err?.message || err)); }
     finally { setSubmitting(false); }
   };
 
@@ -1289,7 +1294,7 @@ function StepDetails({
           <input className="bk-input" type="email" value={form.customerEmail} onChange={(e) => setField("customerEmail", e.target.value)} placeholder="email@ejemplo.com" />
         </div>
         <div className="bk-field">
-          <label>Teléfono</label>
+          <label>Teléfono *</label>
           <input className="bk-input" type="tel" value={form.customerPhone} onChange={(e) => setField("customerPhone", e.target.value)} placeholder="600 000 000" />
         </div>
       </div>

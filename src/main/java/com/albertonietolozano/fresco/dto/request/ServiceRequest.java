@@ -7,5 +7,6 @@ public record ServiceRequest(
         Integer duration,
         Integer capacity,
         Integer chairTime,
-        BigDecimal price
+        BigDecimal price,
+        Long defaultEmployeeId
 ) {}

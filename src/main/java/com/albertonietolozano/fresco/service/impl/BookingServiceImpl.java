@@ -1,6 +1,7 @@
 package com.albertonietolozano.fresco.service.impl;
 
 import com.albertonietolozano.fresco.dto.request.BookingRequest;
+import com.albertonietolozano.fresco.dto.request.BookingUpdateRequest;
 import com.albertonietolozano.fresco.dto.response.AvailabilityResponse;
 import com.albertonietolozano.fresco.dto.response.BookingFieldValueResponse;
 import com.albertonietolozano.fresco.dto.response.BookingResponse;
@@ -17,6 +18,7 @@ import com.albertonietolozano.fresco.repository.ServiceRepository;
 import com.albertonietolozano.fresco.repository.TenantRepository;
 import com.albertonietolozano.fresco.repository.WorkingHoursRepository;
 import com.albertonietolozano.fresco.service.BookingService;
+import com.albertonietolozano.fresco.service.EmailService;
 import com.albertonietolozano.fresco.tenant.TenantContext;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +41,7 @@ public class BookingServiceImpl implements BookingService {
     private final ServiceRepository serviceRepository;
     private final TenantRepository tenantRepository;
     private final ClosedDateRepository closedDateRepository;
+    private final EmailService emailService;
 
     public BookingServiceImpl(
             BookingRepository bookingRepository,
@@ -46,7 +49,8 @@ public class BookingServiceImpl implements BookingService {
             WorkingHoursRepository workingHoursRepository,
             ServiceRepository serviceRepository,
             TenantRepository tenantRepository,
-            ClosedDateRepository closedDateRepository
+            ClosedDateRepository closedDateRepository,
+            EmailService emailService
     ) {
         this.bookingRepository = bookingRepository;
         this.bookingFieldValueRepository = bookingFieldValueRepository;
@@ -54,6 +58,7 @@ public class BookingServiceImpl implements BookingService {
         this.serviceRepository = serviceRepository;
         this.tenantRepository = tenantRepository;
         this.closedDateRepository = closedDateRepository;
+        this.emailService = emailService;
     }
 
     @Override
@@ -62,15 +67,29 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new RuntimeException("Service not found"));
         int duration = service.getDuration();
 
-        List<WorkingHours> employeeSpecific = workingHoursRepository.findAllByEmployeeId(employeeId);
-        List<WorkingHours> workingHoursList = (employeeSpecific.isEmpty()
-                ? workingHoursRepository.findAllByTenantIdAndEmployeeIdIsNull(TenantContext.getTenantId() != null
-                        ? TenantContext.getTenantId()
-                        : service.getTenantId())
-                : employeeSpecific)
-                .stream()
-                .filter(wh -> wh.getDayOfWeek() == date.getDayOfWeek())
-                .toList();
+        Long resolvedTenantId = TenantContext.getTenantId() != null ? TenantContext.getTenantId() : service.getTenantId();
+
+        List<WorkingHours> workingHoursList;
+        if (employeeId == null) {
+            // Sin empleado concreto: usar horarios de negocio si existen, o la unión de todos los empleados.
+            List<WorkingHours> businessHours = workingHoursRepository.findAllByTenantIdAndEmployeeIdIsNull(resolvedTenantId);
+            List<WorkingHours> source = businessHours.isEmpty()
+                    ? workingHoursRepository.findAllByTenantId(resolvedTenantId).stream()
+                            .filter(wh -> wh.getEmployeeId() != null)
+                            .toList()
+                    : businessHours;
+            workingHoursList = source.stream()
+                    .filter(wh -> wh.getDayOfWeek() == date.getDayOfWeek())
+                    .toList();
+        } else {
+            List<WorkingHours> employeeSpecific = workingHoursRepository.findAllByEmployeeId(employeeId);
+            workingHoursList = (employeeSpecific.isEmpty()
+                    ? workingHoursRepository.findAllByTenantIdAndEmployeeIdIsNull(resolvedTenantId)
+                    : employeeSpecific)
+                    .stream()
+                    .filter(wh -> wh.getDayOfWeek() == date.getDayOfWeek())
+                    .toList();
+        }
 
         if (workingHoursList.isEmpty()) {
             return new AvailabilityResponse(List.of());
@@ -83,7 +102,9 @@ public class BookingServiceImpl implements BookingService {
             return new AvailabilityResponse(List.of());
         }
 
-        List<Booking> existingBookings = bookingRepository.findAllByEmployeeIdAndDate(employeeId, date)
+        List<Booking> existingBookings = (employeeId == null
+                ? bookingRepository.findAllByEmployeeIdIsNullAndServiceIdAndDate(service.getId(), date)
+                : bookingRepository.findAllByEmployeeIdAndDate(employeeId, date))
                 .stream()
                 .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
                 .toList();
@@ -112,6 +133,9 @@ public class BookingServiceImpl implements BookingService {
 
         List<LocalTime> slots = new ArrayList<>();
 
+        boolean isToday = date.equals(LocalDate.now());
+        LocalTime now = LocalTime.now();
+
         // capacity = null → cita individual; capacity = 0 → ilimitado; capacity > 0 → grupo con límite.
         boolean isUnlimited = service.getCapacity() != null && service.getCapacity() == 0;
         boolean isLimitedGroup = service.getCapacity() != null && service.getCapacity() > 0;
@@ -123,6 +147,12 @@ public class BookingServiceImpl implements BookingService {
             while (!current.plusMinutes(duration).isAfter(blockEnd)) {
                 final LocalTime slotStart = current;
                 final LocalTime slotEnd = current.plusMinutes(duration);
+
+                // Descartar huecos que ya han pasado si la fecha es hoy.
+                if (isToday && !slotStart.isAfter(now)) {
+                    current = current.plusMinutes(duration);
+                    continue;
+                }
 
                 boolean slotOk;
 
@@ -182,6 +212,11 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional
     public BookingResponse createBooking(BookingRequest request, Long tenantId) {
+        Service requestedService = serviceRepository.findById(request.serviceId())
+                .orElseThrow(() -> new RuntimeException("Service not found"));
+
+        // Validate with the same employeeId the user browsed (null = business hours).
+        // Resolve to defaultEmployeeId only for storage, not for slot validation.
         AvailabilityResponse availability = getAvailableSlots(
                 request.employeeId(), request.serviceId(), request.date()
         );
@@ -191,9 +226,13 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("The requested time slot is not available");
         }
 
+        Long resolvedEmployeeId = request.employeeId() != null
+                ? request.employeeId()
+                : requestedService.getDefaultEmployeeId();
+
         Booking booking = Booking.builder()
                 .tenantId(tenantId)
-                .employeeId(request.employeeId())
+                .employeeId(resolvedEmployeeId)
                 .serviceId(request.serviceId())
                 .customerName(request.customerName())
                 .customerEmail(request.customerEmail())
@@ -205,7 +244,23 @@ public class BookingServiceImpl implements BookingService {
                 .notes(request.notes())
                 .build();
 
-        booking = bookingRepository.save(booking);
+        final Booking saved = bookingRepository.save(booking);
+        booking = saved;
+
+        if (saved.getCustomerEmail() != null && !saved.getCustomerEmail().isBlank()) {
+            serviceRepository.findById(saved.getServiceId()).ifPresent(svc ->
+                tenantRepository.findById(tenantId).ifPresent(tenant ->
+                    emailService.sendBookingConfirmation(
+                            saved.getCustomerEmail(),
+                            saved.getCustomerName(),
+                            tenant.getName(),
+                            svc.getName(),
+                            saved.getDate(),
+                            saved.getStartTime()
+                    )
+                )
+            );
+        }
 
         List<BookingFieldValueResponse> fieldValueResponses = new ArrayList<>();
 
@@ -249,6 +304,28 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         booking.setStatus(status);
+        bookingRepository.save(booking);
+
+        List<BookingFieldValueResponse> fieldValues = bookingFieldValueRepository.findAllByBookingId(id)
+                .stream()
+                .map(fv -> new BookingFieldValueResponse(fv.getCustomFieldId(), fv.getValue()))
+                .toList();
+
+        return toResponse(booking, fieldValues);
+    }
+
+    @Override
+    public BookingResponse updateBooking(Long id, BookingUpdateRequest request) {
+        Booking booking = bookingRepository.findById(id)
+                .filter(b -> b.getTenantId().equals(TenantContext.getTenantId()))
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (request.customerName() != null) booking.setCustomerName(request.customerName());
+        if (request.customerEmail() != null) booking.setCustomerEmail(request.customerEmail());
+        booking.setCustomerPhone(request.customerPhone());
+        booking.setNotes(request.notes());
+        if (request.status() != null) booking.setStatus(request.status());
+
         bookingRepository.save(booking);
 
         List<BookingFieldValueResponse> fieldValues = bookingFieldValueRepository.findAllByBookingId(id)

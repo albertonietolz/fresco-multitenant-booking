@@ -39,6 +39,11 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.update(id, request));
     }
 
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<EmployeeResponse> toggleActive(@PathVariable Long id) {
+        return ResponseEntity.ok(employeeService.toggleActive(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         employeeService.delete(id);

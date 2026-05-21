@@ -12,6 +12,7 @@ class ServicesTab extends StatefulWidget {
 
 class _ServicesTabState extends State<ServicesTab> {
   List<Service> _services = [];
+  List<Employee> _employees = [];
   bool _loading = true;
 
   @override
@@ -23,9 +24,13 @@ class _ServicesTabState extends State<ServicesTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final data = await ApiService.get('/api/services');
+      final results = await Future.wait([
+        ApiService.get('/api/services'),
+        ApiService.get('/api/employees'),
+      ]);
       setState(() {
-        _services = (data as List).map((e) => Service.fromJson(e)).toList();
+        _services = (results[0] as List).map((e) => Service.fromJson(e)).toList();
+        _employees = (results[1] as List).map((e) => Employee.fromJson(e)).toList();
         _loading = false;
       });
     } catch (_) {
@@ -39,6 +44,7 @@ class _ServicesTabState extends State<ServicesTab> {
     final capCtrl = TextEditingController(text: svc?.capacity?.toString() ?? '');
     final priceCtrl = TextEditingController(text: svc?.price?.toStringAsFixed(2) ?? '');
     bool hasPrice = svc?.price != null;
+    int? selectedEmployeeId = svc?.defaultEmployeeId;
 
     showModalBottomSheet(
       context: context,
@@ -74,6 +80,38 @@ class _ServicesTabState extends State<ServicesTab> {
               const SizedBox(height: 4),
               _field('Precio (€)', priceCtrl, type: const TextInputType.numberWithOptions(decimal: true)),
             ],
+            if (_employees.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('Empleado asignado por defecto',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.inkMuted)),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppTheme.stone,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.stoneBorder),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int?>(
+                    value: selectedEmployeeId,
+                    isExpanded: true,
+                    style: const TextStyle(fontSize: 14, color: AppTheme.ink),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('Sin asignar (cualquier empleado)'),
+                      ),
+                      ..._employees.map((e) => DropdownMenuItem<int?>(
+                            value: e.id,
+                            child: Text(e.name),
+                          )),
+                    ],
+                    onChanged: (v) => setModal(() => selectedEmployeeId = v),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
@@ -83,6 +121,7 @@ class _ServicesTabState extends State<ServicesTab> {
                     'duration': int.tryParse(durCtrl.text) ?? 30,
                     'capacity': capCtrl.text.isEmpty ? null : int.tryParse(capCtrl.text),
                     'price': hasPrice && priceCtrl.text.isNotEmpty ? double.tryParse(priceCtrl.text.replaceAll(',', '.')) : null,
+                    'defaultEmployeeId': selectedEmployeeId,
                   };
                   if (svc == null) {
                     await ApiService.post('/api/services', body);
@@ -157,6 +196,13 @@ class _ServicesTabState extends State<ServicesTab> {
               if (s.capacity != null) ...[
                 const Text('  ·  ', style: TextStyle(color: AppTheme.stoneBorder)),
                 Text('Aforo: ${s.capacity}', style: const TextStyle(fontSize: 12, color: AppTheme.inkMuted)),
+              ],
+              if (s.defaultEmployeeId != null) ...[
+                const Text('  ·  ', style: TextStyle(color: AppTheme.stoneBorder)),
+                Text(
+                  _employees.where((e) => e.id == s.defaultEmployeeId).map((e) => e.name).firstOrNull ?? '—',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.blue, fontWeight: FontWeight.w500),
+                ),
               ],
             ]),
           ])),
