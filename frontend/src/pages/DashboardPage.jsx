@@ -2703,6 +2703,10 @@ function Empresa({ onHoursSaved }) {
         method: "PUT",
         body: JSON.stringify(payload),
       });
+      // Actualizar los días abiertos para que el calendario de cierres los refleje sin recargar
+      const DOW_MAP = { MONDAY:1,TUESDAY:2,WEDNESDAY:3,THURSDAY:4,FRIDAY:5,SATURDAY:6,SUNDAY:0 };
+      const openJs = new Set(payload.map((h) => DOW_MAP[h.dayOfWeek]).filter((d) => d !== undefined));
+      setBusinessDaysOfWeek(openJs);
       setBhMsg({ type: "ok", text: "Horario guardado." });
       if (payload.length > 0 && onHoursSaved) onHoursSaved();
     } catch {
@@ -2721,6 +2725,9 @@ function Empresa({ onHoursSaved }) {
     }));
 
   const bookingUrl = tenant ? `${window.location.origin}/booking/${tenant.slug}` : "";
+  const portalUrl  = tenant ? `${window.location.origin}/emp/${tenant.slug}` : "";
+  const [copiedPortal, setCopiedPortal] = useState(false);
+  const copyPortal = () => { if (!portalUrl) return; navigator.clipboard.writeText(portalUrl); setCopiedPortal(true); setTimeout(() => setCopiedPortal(false), 2000); };
   const copyUrl = () => {
     navigator.clipboard.writeText(bookingUrl);
     setCopied(true);
@@ -2857,16 +2864,21 @@ function Empresa({ onHoursSaved }) {
             <label>Identificador público (slug)</label>
             <input value={tenant.slug} readOnly className="input-readonly" />
           </div>
-          <div className="form-field" style={{ marginBottom: 0 }}>
+          <div className="form-field">
             <label>URL de reservas para clientes</label>
             <div className="link-box">
               <span className="link-text">{bookingUrl}</span>
-              <button
-                type="button"
-                className={`copy-btn${copied ? " ok" : ""}`}
-                onClick={copyUrl}
-              >
+              <button type="button" className={`copy-btn${copied ? " ok" : ""}`} onClick={copyUrl}>
                 {copied ? "✓ Copiado" : "Copiar"}
+              </button>
+            </div>
+          </div>
+          <div className="form-field" style={{ marginBottom: 0 }}>
+            <label>URL del portal de empleados</label>
+            <div className="link-box">
+              <span className="link-text">{portalUrl}</span>
+              <button type="button" className={`copy-btn${copiedPortal ? " ok" : ""}`} onClick={copyPortal}>
+                {copiedPortal ? "✓ Copiado" : "Copiar"}
               </button>
             </div>
           </div>
@@ -3565,8 +3577,6 @@ function EmpServicesBadge({ serviceIds, allServices }) {
 function Employees() {
   const [items, setItems] = useState([]);
   const [allServices, setAllServices] = useState([]);
-  const [slug, setSlug] = useState("");
-  const [copiedPortal, setCopiedPortal] = useState(false);
   const [modal, setModal] = useState(false);
   const [editingEmp, setEditingEmp] = useState(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", pin: "" });
@@ -3578,16 +3588,7 @@ function Employees() {
   useEffect(() => {
     load();
     api("/api/services").then(setAllServices).catch(() => {});
-    api("/api/tenant").then((t) => setSlug(t.slug)).catch(() => {});
   }, []);
-
-  const portalUrl = slug ? `${window.location.origin}/emp/${slug}` : "";
-  const copyPortalUrl = () => {
-    if (!portalUrl) return;
-    navigator.clipboard.writeText(portalUrl);
-    setCopiedPortal(true);
-    setTimeout(() => setCopiedPortal(false), 2000);
-  };
 
   const openCreate = () => {
     setEditingEmp(null);
@@ -3651,18 +3652,6 @@ function Employees() {
         </button>
       </div>
 
-      {portalUrl && (
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "var(--white)", border: "1px solid var(--stone-border)", borderRadius: "8px", padding: "10px 14px", marginBottom: "16px", fontSize: "0.80rem" }}>
-          <span style={{ color: "var(--ink-muted)" }}>Portal empleados:</span>
-          <a href={portalUrl} target="_blank" rel="noreferrer" style={{ color: "var(--blue)", fontWeight: 500, wordBreak: "break-all" }}>{portalUrl}</a>
-          <button
-            onClick={copyPortalUrl}
-            style={{ marginLeft: "auto", flexShrink: 0, padding: "4px 10px", fontSize: "0.74rem", border: "1.5px solid var(--stone-border)", borderRadius: "5px", background: "var(--white)", cursor: "pointer" }}
-          >
-            {copiedPortal ? "✓ Copiado" : "Copiar"}
-          </button>
-        </div>
-      )}
       <div className="table-wrap">
         {items.length === 0 ? (
           <div className="empty">No hay empleados. Añade el primero.</div>

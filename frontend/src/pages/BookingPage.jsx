@@ -1264,7 +1264,11 @@ function StepDetails({
 }) {
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const setFv = (id, v) =>
-    setFieldValues((prev) => prev.map((fv) => (fv.fieldId === id ? { ...fv, value: v } : fv)));
+    setFieldValues((prev) => {
+      const exists = prev.some((fv) => fv.customFieldId === id);
+      if (exists) return prev.map((fv) => (fv.customFieldId === id ? { ...fv, value: v } : fv));
+      return [...prev, { customFieldId: id, value: v }];
+    });
 
   return (
     <>
@@ -1300,7 +1304,7 @@ function StepDetails({
       </div>
 
       {serviceFields.length > 0 && serviceFields.map((f) => {
-        const fv = fieldValues.find((x) => x.fieldId === f.id);
+        const fv = fieldValues.find((x) => x.customFieldId === f.id);
         return (
           <div key={f.id} className="bk-field">
             <label>{f.label}{f.required ? " *" : ""}</label>

@@ -100,7 +100,7 @@ public class TenantController {
                 .filter(d -> !closedDateRepository.existsByTenantIdAndDate(tenantId, d))
                 .map(d -> ClosedDate.builder().tenantId(tenantId).date(d).build())
                 .forEach(closedDateRepository::save);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     // Reabre fechas que estaban marcadas como cerradas.
@@ -110,7 +110,7 @@ public class TenantController {
         Long tenantId = TenantContext.getTenantId();
         List<LocalDate> localDates = dates.stream().map(LocalDate::parse).toList();
         closedDateRepository.deleteByTenantIdAndDateIn(tenantId, localDates);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/documents")
