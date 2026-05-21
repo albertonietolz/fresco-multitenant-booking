@@ -101,7 +101,7 @@ public class ServiceServiceImpl implements ServiceService {
         List<CustomFieldResponse> fields = customFieldRepository
                 .findAllByTenantIdAndServiceId(service.getTenantId(), service.getId())
                 .stream()
-                .map(f -> new CustomFieldResponse(f.getId(), f.getLabel(), f.getFieldType(), f.getRequired(), f.getFieldOrder()))
+                .map(f -> new CustomFieldResponse(f.getId(), f.getLabel(), f.getFieldType(), f.getRequired(), f.getFieldOrder(), List.of()))
                 .toList();
 
         return new ServiceResponse(service.getId(), service.getName(), service.getDuration(), service.getCapacity(), service.getChairTime(), service.getPrice(), service.getActive(), fields, service.getDefaultEmployeeId());

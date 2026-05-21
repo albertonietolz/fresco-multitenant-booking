@@ -6,5 +6,6 @@ public record TenantRequest(
         String phone,
         String address,
         Integer maxCapacity,
-        Boolean allowEmployeeChoice
+        Boolean allowEmployeeChoice,
+        String cancellationPolicy
 ) {}

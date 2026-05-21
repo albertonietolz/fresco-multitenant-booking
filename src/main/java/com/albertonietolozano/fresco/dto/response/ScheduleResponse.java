@@ -13,6 +13,7 @@ public record ScheduleResponse(
     public record EmployeeSchedule(Long id, String name, List<BookingSlot> bookings) {}
 
     public record BookingSlot(
+            Long bookingId,
             String startTime,
             String endTime,
             String clientName,

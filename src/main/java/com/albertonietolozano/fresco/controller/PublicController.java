@@ -1,7 +1,10 @@
 package com.albertonietolozano.fresco.controller;
 
+import com.albertonietolozano.fresco.model.enums.BookingStatus;
+import com.albertonietolozano.fresco.repository.BookingRepository;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,19 +43,22 @@ public class PublicController {
     private final EmployeeService employeeService;
     private final BookingService bookingService;
     private final TenantDocumentRepository tenantDocumentRepository;
+    private final BookingRepository bookingRepository;
 
     public PublicController(
             TenantRepository tenantRepository,
             ServiceService serviceService,
             EmployeeService employeeService,
             BookingService bookingService,
-            TenantDocumentRepository tenantDocumentRepository
+            TenantDocumentRepository tenantDocumentRepository,
+            BookingRepository bookingRepository
     ) {
         this.tenantRepository = tenantRepository;
         this.serviceService = serviceService;
         this.employeeService = employeeService;
         this.bookingService = bookingService;
         this.tenantDocumentRepository = tenantDocumentRepository;
+        this.bookingRepository = bookingRepository;
     }
 
     @GetMapping("/services")
@@ -134,7 +140,8 @@ public class PublicController {
         return ResponseEntity.ok(new TenantResponse(
                 tenant.getId(), tenant.getName(), tenant.getSlug(),
                 tenant.getEmail(), tenant.getPhone(), tenant.getAddress(),
-                tenant.getMaxCapacity(), Boolean.TRUE.equals(tenant.getAllowEmployeeChoice())
+                tenant.getMaxCapacity(), Boolean.TRUE.equals(tenant.getAllowEmployeeChoice()),
+                tenant.getCancellationPolicy()
         ));
     }
 
@@ -162,6 +169,41 @@ public class PublicController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.getFileName() + "\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(doc.getContent());
+    }
+
+    @GetMapping("/cancel-info")
+    public ResponseEntity<Map<String, Object>> getCancelInfo(
+            @PathVariable String slug,
+            @RequestParam String token) {
+        Long tenantId = resolveTenantId(slug);
+        com.albertonietolozano.fresco.model.Booking booking = bookingRepository.findByCancelToken(token)
+                .filter(b -> b.getTenantId().equals(tenantId))
+                .orElse(null);
+        if (booking == null) return ResponseEntity.notFound().build();
+        if (booking.getStatus() == BookingStatus.CANCELLED)
+            return ResponseEntity.ok(Map.of("alreadyCancelled", true));
+        return ResponseEntity.ok(Map.of(
+                "alreadyCancelled", false,
+                "customerName", booking.getCustomerName(),
+                "date", booking.getDate().toString(),
+                "startTime", booking.getStartTime().toString().substring(0, 5),
+                "referenceCode", booking.getReferenceCode() != null ? booking.getReferenceCode() : ""
+        ));
+    }
+
+    @PostMapping("/cancel")
+    public ResponseEntity<Void> cancelBooking(
+            @PathVariable String slug,
+            @RequestParam String token) {
+        Long tenantId = resolveTenantId(slug);
+        bookingRepository.findByCancelToken(token)
+                .filter(b -> b.getTenantId().equals(tenantId))
+                .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
+                .ifPresent(b -> {
+                    b.setStatus(BookingStatus.CANCELLED);
+                    bookingRepository.save(b);
+                });
+        return ResponseEntity.noContent().build();
     }
 
     // Resuelve el tenantId a partir del slug; lanza excepción si el negocio no existe.

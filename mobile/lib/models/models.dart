@@ -31,6 +31,24 @@ class Tenant {
       };
 }
 
+class CustomField {
+  final int id;
+  final String label;
+  final String fieldType; // TEXT, NUMBER, SELECT
+  final bool required;
+  final int? fieldOrder;
+
+  CustomField({required this.id, required this.label, required this.fieldType, required this.required, this.fieldOrder});
+
+  factory CustomField.fromJson(Map<String, dynamic> j) => CustomField(
+        id: j['id'],
+        label: j['label'],
+        fieldType: j['fieldType'] ?? 'TEXT',
+        required: j['required'] ?? false,
+        fieldOrder: j['fieldOrder'],
+      );
+}
+
 class Service {
   final int id;
   final String name;
@@ -39,8 +57,9 @@ class Service {
   final double? price;
   final bool active;
   final int? defaultEmployeeId;
+  final List<CustomField> fields;
 
-  Service({required this.id, required this.name, required this.duration, this.capacity, this.price, required this.active, this.defaultEmployeeId});
+  Service({required this.id, required this.name, required this.duration, this.capacity, this.price, required this.active, this.defaultEmployeeId, this.fields = const []});
 
   factory Service.fromJson(Map<String, dynamic> j) => Service(
         id: j['id'],
@@ -50,6 +69,7 @@ class Service {
         price: j['price'] != null ? (j['price'] as num).toDouble() : null,
         active: j['active'] ?? true,
         defaultEmployeeId: j['defaultEmployeeId'],
+        fields: (j['fields'] as List?)?.map((f) => CustomField.fromJson(f)).toList() ?? [],
       );
 }
 

@@ -21,5 +21,6 @@ public record BookingResponse(
         BookingStatus status,
         LocalDateTime createdAt,
         String notes,
-        List<BookingFieldValueResponse> fieldValues
+        List<BookingFieldValueResponse> fieldValues,
+        String referenceCode
 ) {}

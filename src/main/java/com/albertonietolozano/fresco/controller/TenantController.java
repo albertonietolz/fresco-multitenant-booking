@@ -66,6 +66,7 @@ public class TenantController {
         if (request.allowEmployeeChoice() != null) {
             tenant.setAllowEmployeeChoice(request.allowEmployeeChoice());
         }
+        tenant.setCancellationPolicy(request.cancellationPolicy());
         return ResponseEntity.ok(toResponse(tenantRepository.save(tenant)));
     }
 
@@ -167,7 +168,8 @@ public class TenantController {
                 tenant.getPhone(),
                 tenant.getAddress(),
                 tenant.getMaxCapacity(),
-                Boolean.TRUE.equals(tenant.getAllowEmployeeChoice())
+                Boolean.TRUE.equals(tenant.getAllowEmployeeChoice()),
+                tenant.getCancellationPolicy()
         );
     }
 }

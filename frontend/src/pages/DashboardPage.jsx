@@ -712,7 +712,7 @@ const styles = `
     margin-bottom: 6px;
   }
 
-  .form-field input, .form-field select {
+  .form-field input, .form-field select, .form-field textarea {
     width: 100%;
     padding: 10px 13px;
     font-family: 'DM Sans', sans-serif;
@@ -725,7 +725,7 @@ const styles = `
     transition: border-color 0.15s;
   }
 
-  .form-field input:focus, .form-field select:focus {
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
     border-color: var(--blue);
     box-shadow: 0 0 0 3px rgba(26,48,112,0.08);
   }
@@ -1584,8 +1584,12 @@ const styles = `
     border: 1px solid var(--stone-border);
     border-radius: 8px;
     padding: 18px;
+  }
+
+  .bookings-left-col {
     position: sticky;
     top: 80px;
+    align-self: start;
   }
 
   .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
@@ -1938,7 +1942,68 @@ const styles = `
     .bh-time { width: 95px; }
     .bh-day { min-width: 72px; }
   }
+
+  /* ── PENDING BANNER ── */
+  .pending-banner { display: flex; align-items: center; gap: 12px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .pending-banner-text { flex: 1; font-size: 0.84rem; color: #92400e; font-weight: 500; }
+  .pending-banner-text span { font-weight: 700; }
+  .pending-banner-btn { padding: 6px 14px; background: #92400e; color: #fff; border: none; border-radius: 5px; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+  .pending-banner-btn:hover { background: #78350f; }
+  .pending-banner-dismiss { background: none; border: none; color: #a16207; cursor: pointer; font-size: 1rem; padding: 0 2px; line-height: 1; }
+
+  /* ── TODAY WIDGET ── */
+  .today-widget { background: var(--white); border: 1px solid var(--stone-border); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(8,12,30,0.04); }
+  .today-widget-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .today-widget-title { font-size: 0.64rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); }
+  .today-widget-count { font-size: 0.72rem; color: var(--ink-muted); }
+  .today-widget-list { display: flex; flex-direction: column; gap: 7px; }
+  .today-widget-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--stone); border-radius: 7px; border-left: 3px solid var(--ochre); }
+  .today-widget-time { font-family: monospace; font-size: 0.9rem; font-weight: 700; color: var(--blue); min-width: 40px; }
+  .today-widget-info { flex: 1; min-width: 0; }
+  .today-widget-client { font-size: 0.84rem; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .today-widget-meta { font-size: 0.72rem; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .today-widget-empty { color: var(--ink-muted); font-size: 0.82rem; font-style: italic; text-align: center; padding: 8px 0; }
+
+  /* ── WEEK PLAN VIEW ── */
+  .week-plan-wrap { overflow-x: auto; }
+  .week-plan-grid { display: grid; grid-template-columns: repeat(7, minmax(130px, 1fr)); gap: 10px; min-width: 700px; }
+  .week-plan-col { background: var(--white); border: 1px solid var(--stone-border); border-radius: 9px; overflow: hidden; }
+  .week-plan-col.today { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(26,48,112,0.13); }
+  .week-plan-day-hdr { padding: 9px 12px 7px; border-bottom: 1px solid var(--stone-border); }
+  .week-plan-day-name { font-size: 0.62rem; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .week-plan-day-num { font-family: 'Cormorant Garamond', serif; font-size: 1.25rem; font-weight: 600; color: var(--ink); line-height: 1.1; }
+  .week-plan-col.today .week-plan-day-num { color: var(--blue); }
+  .week-plan-col.today .week-plan-day-name { color: var(--blue); }
+  .week-plan-bookings { padding: 8px; display: flex; flex-direction: column; gap: 5px; min-height: 60px; }
+  .week-plan-card { padding: 6px 8px; border-radius: 5px; border-left: 3px solid var(--blue); background: rgba(26,48,112,0.05); cursor: pointer; transition: background 0.12s; }
+  .week-plan-card:hover { background: rgba(26,48,112,0.1); }
+  .week-plan-card.confirmed { border-left-color: var(--success); background: rgba(21,128,61,0.05); }
+  .week-plan-card.confirmed:hover { background: rgba(21,128,61,0.1); }
+  .week-plan-card-time { font-size: 0.66rem; color: var(--blue-light); font-family: monospace; font-weight: 700; }
+  .week-plan-card-client { font-size: 0.76rem; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .week-plan-card-svc { font-size: 0.68rem; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .week-plan-free { font-size: 0.72rem; color: var(--success); font-style: italic; padding: 4px; }
+  .week-view-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .view-toggle { display: flex; border: 1.5px solid var(--stone-border); border-radius: 6px; overflow: hidden; }
+  .view-toggle-btn { padding: 5px 14px; font-size: 0.78rem; background: var(--white); border: none; border-right: 1px solid var(--stone-border); font-family: 'DM Sans', sans-serif; cursor: pointer; color: var(--ink-muted); transition: all 0.12s; }
+  .view-toggle-btn:last-child { border-right: none; }
+  .view-toggle-btn.active { background: var(--blue); color: #fff; font-weight: 500; }
+
+  /* ── EMP BLOCKED DATES MODAL ── */
+  .blocked-cal { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  .blocked-cal th { font-size: 0.66rem; font-weight: 600; color: var(--ink-muted); text-align: center; padding: 4px 2px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .blocked-cal td { text-align: center; padding: 3px; }
+  .blocked-cal-btn { width: 34px; height: 34px; border-radius: 6px; border: 1.5px solid transparent; background: var(--stone); font-size: 0.82rem; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
+  .blocked-cal-btn:hover { border-color: var(--blue-light); background: rgba(26,48,112,0.06); }
+  .blocked-cal-btn.blocked { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 600; }
+  .blocked-cal-btn.past { opacity: 0.35; cursor: not-allowed; }
+  .blocked-cal-btn.empty { visibility: hidden; }
+  .blocked-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .blocked-cal-month { font-size: 0.86rem; font-weight: 600; color: var(--ink); }
+  .blocked-cal-nav-btn { width: 28px; height: 28px; border: 1.5px solid var(--stone-border); border-radius: 5px; background: var(--white); cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
+  .blocked-cal-nav-btn:hover { border-color: var(--blue-light); }
 `;
+
 
 const api = async (path, opts = {}) => {
   const token = localStorage.getItem("token");
@@ -2310,8 +2375,47 @@ function Overview({ setSection }) {
 
   if (loading) return <div className="empty">Cargando…</div>;
 
+  // Today's upcoming bookings
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const nowStr = new Date().toTimeString().slice(0, 5);
+  const todayBookings = bookings
+    .filter((b) => b.date === todayStr && b.status !== "CANCELLED")
+    .filter((b) => (b.startTime?.slice(0, 5) || "00:00") >= nowStr)
+    .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+
   return (
     <>
+      {/* Widget Hoy */}
+      <div className="today-widget">
+        <div className="today-widget-header">
+          <div className="today-widget-title">Citas de hoy</div>
+          <div className="today-widget-count">{todayBookings.length} próxima{todayBookings.length !== 1 ? "s" : ""}</div>
+        </div>
+        {todayBookings.length === 0 ? (
+          <div className="today-widget-empty">No quedan más citas hoy.</div>
+        ) : (
+          <div className="today-widget-list">
+            {todayBookings.slice(0, 6).map((b) => (
+              <div key={b.id} className="today-widget-item">
+                <div className="today-widget-time">{b.startTime?.slice(0, 5) || "—"}</div>
+                <div className="today-widget-info">
+                  <div className="today-widget-client">{b.customerName}</div>
+                  <div className="today-widget-meta">
+                    {svcMap[b.serviceId] || "—"}
+                    {b.employeeId && empMap[b.employeeId] ? ` · ${empMap[b.employeeId]}` : ""}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {todayBookings.length > 6 && (
+              <div style={{ fontSize: "0.74rem", color: "var(--ink-muted)", textAlign: "center", paddingTop: "4px" }}>
+                +{todayBookings.length - 6} más · <button style={{ background: "none", border: "none", color: "var(--blue)", cursor: "pointer", fontSize: "inherit", fontFamily: "inherit" }} onClick={() => setSection("planning")}>Ver todas</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Period picker */}
       <div className="an-period">
         <div className="an-seg">
@@ -2613,6 +2717,7 @@ function Empresa({ onHoursSaved }) {
     phone: "",
     address: "",
     maxCapacity: "",
+    cancellationPolicy: "",
   });
   const [msg, setMsg] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -2639,6 +2744,7 @@ function Empresa({ onHoursSaved }) {
           address: data.address || "",
           maxCapacity: data.maxCapacity != null ? String(data.maxCapacity) : "",
           allowEmployeeChoice: data.allowEmployeeChoice ?? false,
+          cancellationPolicy: data.cancellationPolicy || "",
         });
       })
       .catch(() => {});
@@ -2837,6 +2943,19 @@ function Empresa({ onHoursSaved }) {
               </label>
               <p style={{ fontSize: "0.73rem", color: "var(--ink-muted)", marginTop: "4px", lineHeight: 1.5 }}>
                 Si está desactivado, el sistema asigna automáticamente un profesional disponible.
+              </p>
+            </div>
+            <div className="form-field">
+              <label>Política de cancelación (opcional)</label>
+              <textarea
+                rows={3}
+                placeholder="Ej: Las cancelaciones deben realizarse con al menos 24h de antelación…"
+                value={form.cancellationPolicy}
+                onChange={(e) => setForm((p) => ({ ...p, cancellationPolicy: e.target.value }))}
+                style={{ resize: "vertical", minHeight: "72px" }}
+              />
+              <p style={{ fontSize: "0.73rem", color: "var(--ink-muted)", marginTop: "4px", lineHeight: 1.5 }}>
+                Se mostrará al cliente en el último paso de la reserva y en el correo de confirmación.
               </p>
             </div>
             <div style={{ marginTop: "20px" }}>
@@ -3574,6 +3693,94 @@ function EmpServicesBadge({ serviceIds, allServices }) {
 }
 
 /* ── EMPLOYEES ── */
+function EmpBlockedDatesModal({ emp, onClose }) {
+  const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [blocked, setBlocked] = useState(new Set());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api(`/api/employees/${emp.id}/blocked-dates`)
+      .then((dates) => setBlocked(new Set(dates)))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [emp.id]);
+
+  const toggleDate = async (dateStr) => {
+    const d = new Date(dateStr + "T00:00:00"); d.setHours(0,0,0,0);
+    if (d < today) return;
+    if (blocked.has(dateStr)) {
+      await api(`/api/employees/${emp.id}/blocked-dates?date=${dateStr}`, { method: "DELETE" });
+      setBlocked((prev) => { const n = new Set(prev); n.delete(dateStr); return n; });
+    } else {
+      await api(`/api/employees/${emp.id}/blocked-dates?date=${dateStr}`, { method: "POST" });
+      setBlocked((prev) => new Set([...prev, dateStr]));
+    }
+  };
+
+  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
+  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const offset = (firstDay + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = Array(offset).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 380, padding: "24px 20px" }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-title">Días libres · {emp.name}</div>
+        <p style={{ fontSize: "0.78rem", color: "var(--ink-muted)", marginBottom: "14px" }}>
+          Haz clic en un día para bloquearlo. Los clientes no podrán reservar esos días con este empleado.
+        </p>
+        {loading ? <div style={{ textAlign: "center", color: "var(--ink-muted)", padding: "20px 0" }}>Cargando…</div> : (
+          <>
+            <div className="blocked-cal-nav">
+              <button className="blocked-cal-nav-btn" onClick={prevMonth}>‹</button>
+              <div className="blocked-cal-month">{MONTHS_ES[month]} {year}</div>
+              <button className="blocked-cal-nav-btn" onClick={nextMonth}>›</button>
+            </div>
+            <table className="blocked-cal">
+              <thead><tr>{["L","M","X","J","V","S","D"].map((d) => <th key={d}>{d}</th>)}</tr></thead>
+              <tbody>
+                {Array.from({ length: cells.length / 7 }, (_, ri) => (
+                  <tr key={ri}>
+                    {cells.slice(ri * 7, ri * 7 + 7).map((day, ci) => {
+                      if (!day) return <td key={ci}><button className="blocked-cal-btn empty">·</button></td>;
+                      const dateStr = `${year}-${String(month + 1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                      const d = new Date(dateStr + "T00:00:00"); d.setHours(0,0,0,0);
+                      const isPast = d < today;
+                      const isBlocked = blocked.has(dateStr);
+                      return (
+                        <td key={ci}>
+                          <button
+                            className={`blocked-cal-btn${isBlocked ? " blocked" : ""}${isPast ? " past" : ""}`}
+                            onClick={() => toggleDate(dateStr)}
+                          >{day}</button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ fontSize: "0.72rem", color: "var(--ink-muted)", marginTop: "8px", textAlign: "center" }}>
+              {blocked.size} día{blocked.size !== 1 ? "s" : ""} bloqueado{blocked.size !== 1 ? "s" : ""}
+            </div>
+          </>
+        )}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }}>
+          <button className="btn-primary" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Employees() {
   const [items, setItems] = useState([]);
   const [allServices, setAllServices] = useState([]);
@@ -3583,6 +3790,7 @@ function Employees() {
   const [empAllSvcs, setEmpAllSvcs] = useState(true);
   const [empSvcIds, setEmpSvcIds] = useState([]);
   const [msg, setMsg] = useState(null);
+  const [blockedDatesEmp, setBlockedDatesEmp] = useState(null);
 
   const load = () => api("/api/employees").then(setItems).catch(() => {});
   useEffect(() => {
@@ -3687,9 +3895,12 @@ function Employees() {
                       {e.active ? "Activo" : "Inactivo"}
                     </span>
                   </td>
-                  <td style={{ display: "flex", gap: "6px" }}>
+                  <td style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                     <button className="btn-sm" onClick={() => openEdit(e)}>
                       Editar
+                    </button>
+                    <button className="btn-sm" onClick={() => setBlockedDatesEmp(e)} title="Gestionar días libres">
+                      Días libres
                     </button>
                     <button
                       className={e.active ? "btn-danger" : "btn-sm"}
@@ -3802,6 +4013,9 @@ function Employees() {
             </form>
           </div>
         </div>
+      )}
+      {blockedDatesEmp && (
+        <EmpBlockedDatesModal emp={blockedDatesEmp} onClose={() => setBlockedDatesEmp(null)} />
       )}
     </>
   );
@@ -4011,6 +4225,15 @@ function Planning() {
   const [onDutyLoading, setOnDutyLoading] = useState(false);
   const [editBooking, setEditBooking] = useState(null);
   const [editForm, setEditForm] = useState({ customerName: "", customerEmail: "", customerPhone: "", notes: "", status: "PENDING" });
+  const [dayOverview, setDayOverview] = useState([]);
+  const [ovLoading, setOvLoading] = useState(false);
+  const [planView, setPlanView] = useState("day");
+  const [weekStart, setWeekStart] = useState(() => {
+    const d = new Date(); d.setHours(0,0,0,0);
+    const offset = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - offset);
+    return d.toISOString().slice(0, 10);
+  });
 
   const load = () => api("/api/bookings").then(setItems).catch(() => {});
   useEffect(() => {
@@ -4030,6 +4253,27 @@ function Planning() {
   const STATUS_ES = { PENDING: "Pendiente", CONFIRMED: "Confirmada", CANCELLED: "Cancelada" };
   const fmtSlot = (s) => typeof s === "string" ? s.slice(0, 5) : `${String(s[0]).padStart(2,"0")}:${String(s[1]).padStart(2,"0")}`;
   const rawSlot = (s) => typeof s === "string" ? s : `${String(s[0]).padStart(2,"0")}:${String(s[1]).padStart(2,"0")}:00`;
+
+  const loadOverview = async (date) => {
+    setOvLoading(true);
+    try { setDayOverview(await api(`/api/bookings/day-overview?date=${date}`)); }
+    catch { setDayOverview([]); }
+    finally { setOvLoading(false); }
+  };
+
+  useEffect(() => { loadOverview(selectedDate || today); }, [selectedDate]);
+
+  const fmtDateShort = (ds) => {
+    const [, m, d] = ds.split("-");
+    return `${Number(d)} ${MONTHS_ES[Number(m) - 1]}`;
+  };
+
+  const computeTotalSlots = (start, end) => {
+    if (!start || !end || start === "—" || end === "—") return 0;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    return Math.max(0, Math.floor(((eh * 60 + em) - (sh * 60 + sm)) / 30));
+  };
 
   const filtered = items
     .filter((b) => !selectedDate || b.date === selectedDate)
@@ -4060,7 +4304,7 @@ function Planning() {
   const saveEdit = async () => {
     try {
       await api(`/api/bookings/${editBooking.id}`, { method: "PATCH", body: JSON.stringify({ customerName: editForm.customerName, customerEmail: editForm.customerEmail || null, customerPhone: editForm.customerPhone || null, notes: editForm.notes || null, status: editForm.status }) });
-      setEditBooking(null); load(); setMsg({ type: "ok", text: "Reserva actualizada." });
+      setEditBooking(null); load(); loadOverview(selectedDate || today); setMsg({ type: "ok", text: "Reserva actualizada." });
     } catch { setMsg({ type: "err", text: "Error al guardar cambios." }); }
   };
 
@@ -4078,20 +4322,156 @@ function Planning() {
     try {
       const startTime = bForm.startTime.length === 5 ? bForm.startTime + ":00" : bForm.startTime;
       await api("/api/bookings", { method: "POST", body: JSON.stringify({ serviceId: Number(bForm.serviceId), employeeId: Number(bForm.employeeId), date: bForm.date, startTime, customerName: bForm.customerName, customerEmail: bForm.customerEmail || null, customerPhone: bForm.customerPhone || null, notes: bForm.notes || null, fieldValues: [] }) });
-      setModal(false); load(); setMsg({ type: "ok", text: "Reserva creada correctamente." });
+      setModal(false); load(); loadOverview(selectedDate || today); setMsg({ type: "ok", text: "Reserva creada correctamente." });
     } catch { setMsg({ type: "err", text: "Error al crear la reserva." }); }
   };
+
+  const exportCSV = () => {
+    const svcMap = Object.fromEntries(services.map((s) => [s.id, s.name]));
+    const empMap = Object.fromEntries(employees.map((e) => [e.id, e.name]));
+    const header = ["ID","Fecha","Hora","Cliente","Email","Teléfono","Servicio","Empleado","Estado","Notas"];
+    const rows = items.map((b) => [
+      b.id, b.date, b.startTime?.slice(0,5) || "",
+      b.customerName || "", b.customerEmail || "", b.customerPhone || "",
+      svcMap[b.serviceId] || b.serviceId,
+      b.employeeId ? (empMap[b.employeeId] || b.employeeId) : "",
+      b.status, b.notes || ""
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    const csv = [header.join(","), ...rows].join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url;
+    a.download = `reservas_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const addWeek = (n) => {
+    const d = new Date(weekStart + "T00:00:00"); d.setDate(d.getDate() + n * 7);
+    setWeekStart(d.toISOString().slice(0, 10));
+  };
+
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart + "T00:00:00"); d.setDate(d.getDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
+
+  const svcMap = Object.fromEntries(services.map((s) => [s.id, s.name]));
+  const empMap = Object.fromEntries(employees.map((e) => [e.id, e.name]));
+  const DOW_SHORT = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 
   return (
     <div className="bookings-section">
       {msg && <div className={`alert ${msg.type}`}>{msg.text}</div>}
       <div className="section-header">
         <div className="section-title">Planificación</div>
-        <button className="btn-primary" onClick={openModal}>+ Nueva reserva</button>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+          <button className="btn-sm" onClick={exportCSV} title="Exportar todas las reservas a CSV">↓ CSV</button>
+          <button className="btn-primary" onClick={openModal}>+ Nueva reserva</button>
+        </div>
       </div>
 
+      {/* View toggle */}
+      <div className="week-view-nav">
+        <div className="view-toggle">
+          <button className={`view-toggle-btn${planView === "day" ? " active" : ""}`} onClick={() => setPlanView("day")}>Día</button>
+          <button className={`view-toggle-btn${planView === "week" ? " active" : ""}`} onClick={() => setPlanView("week")}>Semana</button>
+        </div>
+        {planView === "week" && (
+          <>
+            <button className="btn-sm" onClick={() => addWeek(-1)}>‹</button>
+            <span style={{ fontSize: "0.82rem", color: "var(--ink-muted)" }}>
+              {weekDates[0]} – {weekDates[6]}
+            </span>
+            <button className="btn-sm" onClick={() => addWeek(1)}>›</button>
+          </>
+        )}
+      </div>
+
+      {planView === "week" ? (
+        <div className="week-plan-wrap">
+          <div className="week-plan-grid">
+            {weekDates.map((ds, idx) => {
+              const dayBookings = items
+                .filter((b) => b.date === ds && b.status !== "CANCELLED")
+                .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+              const [,, dayNum] = ds.split("-");
+              const isToday = ds === today;
+              return (
+                <div key={ds} className={`week-plan-col${isToday ? " today" : ""}`}>
+                  <div className="week-plan-day-hdr">
+                    <div className="week-plan-day-name">{DOW_SHORT[idx]}</div>
+                    <div className="week-plan-day-num">{Number(dayNum)}</div>
+                  </div>
+                  <div className="week-plan-bookings">
+                    {dayBookings.length === 0
+                      ? <div className="week-plan-free">Libre</div>
+                      : dayBookings.map((b) => (
+                          <div key={b.id} className={`week-plan-card${b.status === "CONFIRMED" ? " confirmed" : ""}`} onClick={() => openEdit(b)}>
+                            <div className="week-plan-card-time">{b.startTime?.slice(0,5) || "—"}</div>
+                            <div className="week-plan-card-client">{b.customerName}</div>
+                            <div className="week-plan-card-svc">
+                              {svcMap[b.serviceId] || "—"}
+                              {b.employeeId && empMap[b.employeeId] ? ` · ${empMap[b.employeeId]}` : ""}
+                            </div>
+                          </div>
+                        ))
+                    }
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
       <div className="bookings-layout">
-        <CalendarMini bookings={items} selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setStatusFilter("ALL"); }} />
+        <div className="bookings-left-col">
+          <CalendarMini bookings={items} selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setStatusFilter("ALL"); }} />
+
+          {/* Panel de disponibilidad */}
+          <div style={{ marginTop: "14px" }}>
+            <div style={{ fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.13em", textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: "10px" }}>
+              Disponibilidad · {fmtDateShort(selectedDate || today)}
+            </div>
+            {ovLoading ? (
+              <div style={{ color: "var(--ink-muted)", fontSize: "0.76rem", textAlign: "center", padding: "10px 0" }}>…</div>
+            ) : dayOverview.length === 0 ? (
+              <div style={{ color: "var(--ink-muted)", fontSize: "0.74rem", fontStyle: "italic", textAlign: "center", padding: "8px 0" }}>Sin turnos este día</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                {dayOverview.map((emp) => {
+                  const total = computeTotalSlots(emp.workStart, emp.workEnd);
+                  const pct = total > 0 ? Math.min(100, Math.round((emp.bookedCount / total) * 100)) : 0;
+                  const initials = emp.employeeName.trim().split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+                  const fillColor = pct >= 90 ? "var(--error)" : pct >= 55 ? "var(--ochre)" : "var(--success)";
+                  return (
+                    <div key={emp.employeeId} style={{ background: "var(--stone)", border: "1px solid var(--stone-border)", borderRadius: "7px", padding: "8px 10px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
+                        <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "var(--blue)", color: "#fff", fontSize: "0.58rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {initials}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "0.78rem", fontWeight: 500, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{emp.employeeName}</div>
+                          <div style={{ fontSize: "0.66rem", color: "var(--ink-muted)" }}>{emp.workStart}–{emp.workEnd}</div>
+                        </div>
+                        <div style={{ fontSize: "0.7rem", fontWeight: 700, color: fillColor, flexShrink: 0 }}>{emp.bookedCount}/{total}</div>
+                      </div>
+                      <div style={{ height: "5px", background: "var(--stone-border)", borderRadius: "3px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, background: fillColor, borderRadius: "3px", transition: "width 0.35s ease" }} />
+                      </div>
+                      {emp.bookedTimes && emp.bookedTimes.length > 0 && (
+                        <div style={{ marginTop: "5px", display: "flex", flexWrap: "wrap", gap: "3px" }}>
+                          {emp.bookedTimes.sort().map((t) => (
+                            <span key={t} style={{ fontSize: "0.62rem", background: "var(--white)", border: "1px solid var(--stone-border)", borderRadius: "3px", padding: "1px 5px", color: "var(--ink-muted)", fontFamily: "monospace" }}>{t}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Filtros de estado */}
@@ -4175,6 +4555,7 @@ function Planning() {
           )}
         </div>
       </div>
+      )} {/* end day/week conditional */}
 
       {/* Modal nueva reserva */}
       {modal && (

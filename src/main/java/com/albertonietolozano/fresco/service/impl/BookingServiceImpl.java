@@ -14,6 +14,7 @@ import com.albertonietolozano.fresco.model.enums.BookingStatus;
 import com.albertonietolozano.fresco.repository.BookingFieldValueRepository;
 import com.albertonietolozano.fresco.repository.BookingRepository;
 import com.albertonietolozano.fresco.repository.ClosedDateRepository;
+import com.albertonietolozano.fresco.repository.EmployeeBlockedDateRepository;
 import com.albertonietolozano.fresco.repository.ServiceRepository;
 import com.albertonietolozano.fresco.repository.TenantRepository;
 import com.albertonietolozano.fresco.repository.WorkingHoursRepository;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 // Implementación del servicio de reservas: calcula disponibilidad cruzando horarios con reservas existentes.
@@ -41,6 +43,7 @@ public class BookingServiceImpl implements BookingService {
     private final ServiceRepository serviceRepository;
     private final TenantRepository tenantRepository;
     private final ClosedDateRepository closedDateRepository;
+    private final EmployeeBlockedDateRepository empBlockedDateRepository;
     private final EmailService emailService;
 
     public BookingServiceImpl(
@@ -50,6 +53,7 @@ public class BookingServiceImpl implements BookingService {
             ServiceRepository serviceRepository,
             TenantRepository tenantRepository,
             ClosedDateRepository closedDateRepository,
+            EmployeeBlockedDateRepository empBlockedDateRepository,
             EmailService emailService
     ) {
         this.bookingRepository = bookingRepository;
@@ -58,6 +62,7 @@ public class BookingServiceImpl implements BookingService {
         this.serviceRepository = serviceRepository;
         this.tenantRepository = tenantRepository;
         this.closedDateRepository = closedDateRepository;
+        this.empBlockedDateRepository = empBlockedDateRepository;
         this.emailService = emailService;
     }
 
@@ -99,6 +104,12 @@ public class BookingServiceImpl implements BookingService {
 
         // Si la fecha está marcada como cierre excepcional, no hay disponibilidad.
         if (tenantId != null && closedDateRepository.existsByTenantIdAndDate(tenantId, date)) {
+            return new AvailabilityResponse(List.of());
+        }
+
+        // Si el empleado bloqueó este día individualmente, no hay disponibilidad.
+        if (employeeId != null && tenantId != null
+                && empBlockedDateRepository.existsByTenantIdAndEmployeeIdAndDate(tenantId, employeeId, date)) {
             return new AvailabilityResponse(List.of());
         }
 
@@ -230,6 +241,9 @@ public class BookingServiceImpl implements BookingService {
                 ? request.employeeId()
                 : requestedService.getDefaultEmployeeId();
 
+        String refCode = generateReferenceCode();
+        String cancelToken = UUID.randomUUID().toString();
+
         Booking booking = Booking.builder()
                 .tenantId(tenantId)
                 .employeeId(resolvedEmployeeId)
@@ -242,6 +256,8 @@ public class BookingServiceImpl implements BookingService {
                 .status(BookingStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .notes(request.notes())
+                .referenceCode(refCode)
+                .cancelToken(cancelToken)
                 .build();
 
         final Booking saved = bookingRepository.save(booking);
@@ -256,7 +272,11 @@ public class BookingServiceImpl implements BookingService {
                             tenant.getName(),
                             svc.getName(),
                             saved.getDate(),
-                            saved.getStartTime()
+                            saved.getStartTime(),
+                            saved.getReferenceCode(),
+                            saved.getCancelToken(),
+                            tenant.getSlug(),
+                            tenant.getCancellationPolicy()
                     )
                 )
             );
@@ -336,6 +356,15 @@ public class BookingServiceImpl implements BookingService {
         return toResponse(booking, fieldValues);
     }
 
+    private static final String REF_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    private String generateReferenceCode() {
+        java.util.Random rng = new java.util.Random();
+        StringBuilder sb = new StringBuilder(6);
+        for (int i = 0; i < 6; i++) sb.append(REF_CHARS.charAt(rng.nextInt(REF_CHARS.length())));
+        return sb.toString();
+    }
+
     private BookingResponse toResponse(Booking booking, List<BookingFieldValueResponse> fieldValues) {
         return new BookingResponse(
                 booking.getId(),
@@ -350,7 +379,8 @@ public class BookingServiceImpl implements BookingService {
                 booking.getStatus(),
                 booking.getCreatedAt(),
                 booking.getNotes(),
-                fieldValues
+                fieldValues,
+                booking.getReferenceCode()
         );
     }
 }

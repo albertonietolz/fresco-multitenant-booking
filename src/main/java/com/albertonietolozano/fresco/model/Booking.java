@@ -52,4 +52,10 @@ public class Booking {
     private LocalDateTime createdAt;
 
     private String notes;
+
+    @Column(unique = true)
+    private String referenceCode;
+
+    @Column(unique = true)
+    private String cancelToken;
 }

@@ -30,6 +30,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final Map<int, TextEditingController> _fieldCtrl = {};
 
   bool _loading = false;
   String? _error;
@@ -118,9 +119,20 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       setState(() => _error = 'El teléfono es obligatorio');
       return;
     }
+    // Validar campos obligatorios del servicio
+    for (final f in (_service?.fields ?? [])) {
+      if (f.required && (_fieldCtrl[f.id]?.text.trim().isEmpty ?? true)) {
+        setState(() => _error = '${f.label} es obligatorio');
+        return;
+      }
+    }
     setState(() { _loading = true; _error = null; });
     try {
       final slug = widget.slug;
+      final fieldValues = (_service?.fields ?? [])
+          .where((f) => _fieldCtrl[f.id]?.text.trim().isNotEmpty == true)
+          .map((f) => {'customFieldId': f.id, 'value': _fieldCtrl[f.id]!.text.trim()})
+          .toList();
       await ApiService.pubPost('/$slug/booking', {
         'serviceId': _service!.id,
         'employeeId': _employee?.id,
@@ -130,7 +142,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         'customerEmail': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
         'customerPhone': _phoneCtrl.text.trim(),
         'notes': _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-        'fieldValues': [],
+        'fieldValues': fieldValues,
       });
       setState(() { _step = 5; _loading = false; });
     } catch (_) {
@@ -394,37 +406,54 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     );
   }
 
-  Widget _stepDetails() => SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: AppTheme.cardDecoration(bg: AppTheme.ochreDim),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _summaryRow('Servicio', _service!.name),
-              _summaryRow('Profesional', _employee!.name),
-              _summaryRow('Fecha', _date),
-              _summaryRow('Hora', _slot),
-              if (_service!.price != null) _summaryRow('Precio', '${_service!.price!.toStringAsFixed(2)} €'),
-            ]),
+  Widget _stepDetails() {
+    // Inicializar controladores para los campos del servicio
+    for (final f in (_service?.fields ?? [])) {
+      _fieldCtrl.putIfAbsent(f.id, () => TextEditingController());
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: AppTheme.cardDecoration(bg: AppTheme.ochreDim),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _summaryRow('Servicio', _service!.name),
+            _summaryRow('Profesional', _employee!.name),
+            _summaryRow('Fecha', _date),
+            _summaryRow('Hora', _slot),
+            if (_service!.price != null) _summaryRow('Precio', '${_service!.price!.toStringAsFixed(2)} €'),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        if (_error != null) _errorBox(_error!),
+        _fieldLabel('Nombre completo *'),
+        TextField(controller: _nameCtrl, decoration: _inputDec('Tu nombre y apellidos')),
+        const SizedBox(height: 12),
+        _fieldLabel('Email'),
+        TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: _inputDec('tu@email.com')),
+        const SizedBox(height: 12),
+        _fieldLabel('Teléfono *'),
+        TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, decoration: _inputDec('6XX XXX XXX')),
+        const SizedBox(height: 12),
+        _fieldLabel('Notas (opcional)'),
+        TextField(controller: _notesCtrl, maxLines: 3, decoration: _inputDec('Observaciones adicionales…')),
+        // Campos personalizados del servicio
+        for (final f in (_service?.fields ?? const <CustomField>[])) ...[
+          const SizedBox(height: 12),
+          _fieldLabel('${f.label}${f.required ? " *" : ""}'),
+          TextField(
+            controller: _fieldCtrl[f.id],
+            keyboardType: f.fieldType == 'NUMBER' ? TextInputType.number : TextInputType.text,
+            decoration: _inputDec(f.fieldType == 'SELECT' ? 'Escribe tu opción…' : ''),
           ),
-          const SizedBox(height: 16),
-          if (_error != null) _errorBox(_error!),
-          _fieldLabel('Nombre completo *'),
-          TextField(controller: _nameCtrl, decoration: _inputDec('Tu nombre y apellidos')),
-          const SizedBox(height: 12),
-          _fieldLabel('Email'),
-          TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: _inputDec('tu@email.com')),
-          const SizedBox(height: 12),
-          _fieldLabel('Teléfono *'),
-          TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, decoration: _inputDec('6XX XXX XXX')),
-          const SizedBox(height: 12),
-          _fieldLabel('Notas (opcional)'),
-          TextField(controller: _notesCtrl, maxLines: 3, decoration: _inputDec('Observaciones adicionales…')),
-          const SizedBox(height: 24),
-          _primaryBtn(_loading ? 'Confirmando…' : 'Confirmar reserva', _loading ? () {} : _submit),
-        ]),
-      );
+        ],
+        const SizedBox(height: 24),
+        _primaryBtn(_loading ? 'Confirmando…' : 'Confirmar reserva', _loading ? () {} : _submit),
+      ]),
+    );
+  }
 
   Widget _stepDone() => Center(
         child: Padding(

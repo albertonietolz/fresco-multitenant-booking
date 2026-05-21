@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 const API_BASE = "http://localhost:8080";
 
@@ -824,12 +824,44 @@ const styles = `
     .bk-input-2col { grid-template-columns: 1fr; }
     .bk-slot-grid { grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); }
   }
+
+  /* ── REFERENCE CODE ── */
+  .bk-ref-badge { display: inline-block; background: var(--blue); color: #fff; font-family: monospace; font-size: 1.1rem; font-weight: 700; letter-spacing: 0.18em; padding: 6px 18px; border-radius: 8px; margin: 8px 0 16px; }
+  .bk-ref-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 4px; }
+
+  /* ── CANCELLATION POLICY ── */
+  .bk-policy { background: rgba(201,151,58,0.08); border: 1px solid rgba(201,151,58,0.35); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+  .bk-policy-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ochre); margin-bottom: 5px; }
+  .bk-policy-text { font-size: 0.82rem; color: var(--ink-muted); line-height: 1.6; }
+
+  /* ── CANCEL SCREEN ── */
+  .bk-cancel { text-align: center; padding: 40px 20px; }
+  .bk-cancel-icon { font-size: 2.8rem; margin-bottom: 12px; }
+  .bk-cancel-title { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+  .bk-cancel-sub { font-size: 0.88rem; color: var(--ink-muted); line-height: 1.6; margin-bottom: 24px; }
+  .bk-cancel-detail { background: var(--white); border: 1px solid var(--stone-border); border-radius: 10px; padding: 18px 20px; margin-bottom: 24px; text-align: left; }
+  .bk-cancel-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--stone-border); font-size: 0.86rem; }
+  .bk-cancel-row:last-child { border-bottom: none; }
+  .bk-cancel-key { color: var(--ink-muted); min-width: 70px; }
+  .bk-cancel-val { font-weight: 500; color: var(--ink); }
+  .bk-cancel-actions { display: flex; flex-direction: column; gap: 10px; max-width: 280px; margin: 0 auto; }
+  .bk-btn-cancel-confirm { padding: 12px 20px; background: var(--error); color: #fff; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .bk-btn-cancel-confirm:hover { background: #b91c1c; }
+  .bk-btn-cancel-back { padding: 11px 20px; background: var(--stone); color: var(--ink-muted); border: 1px solid var(--stone-border); border-radius: 8px; font-size: 0.88rem; cursor: pointer; font-family: inherit; }
+  .bk-btn-cancel-back:hover { background: var(--stone-border); }
 `;
 
 export default function BookingPage() {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
+  const cancelToken = searchParams.get("cancel");
   const [tenant, setTenant] = useState(null);
   const [notFound, setNotFound] = useState(false);
+
+  // Cancel flow state
+  const [cancelInfo, setCancelInfo] = useState(null);
+  const [cancelDone, setCancelDone] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const [step, setStep] = useState(1);
   const [services, setServices] = useState([]);
@@ -856,9 +888,17 @@ export default function BookingPage() {
 
   useEffect(() => {
     pub(`/${slug}/booking/info`).then(setTenant).catch(() => setNotFound(true));
+    if (cancelToken) return; // no need to load services when cancelling
     pub(`/${slug}/booking/services`).then((data) => setServices(data.filter((s) => s.active))).catch(() => {});
     pub(`/${slug}/booking/documents`).then(setDocs).catch(() => {});
   }, [slug]);
+
+  useEffect(() => {
+    if (!cancelToken) return;
+    pub(`/${slug}/booking/cancel-info?token=${cancelToken}`)
+      .then(setCancelInfo)
+      .catch(() => setCancelInfo({ error: true }));
+  }, [cancelToken]);
 
   useEffect(() => {
     if (!service || !tenant) return;
@@ -954,6 +994,90 @@ export default function BookingPage() {
     </>
   );
 
+  // ── CANCEL FLOW ──
+  if (cancelToken) {
+    const doCancel = async () => {
+      setCancelLoading(true);
+      try {
+        await fetch(`http://localhost:8080/${slug}/booking/cancel?token=${cancelToken}`, { method: "POST" });
+        setCancelDone(true);
+      } finally { setCancelLoading(false); }
+    };
+
+    return (
+      <>
+        <style>{styles}</style>
+        <div className="bk-page">
+          <header className="bk-header">
+            <div className="bk-header-inner">
+              <div className="bk-brand">{tenant.name}</div>
+              <div className="bk-header-rule" />
+              <div className="bk-tagline">Cancelación de reserva</div>
+            </div>
+          </header>
+          <main className="bk-main">
+            {!cancelInfo ? (
+              <div className="bk-cancel"><div className="bk-cancel-sub">Cargando información de la reserva…</div></div>
+            ) : cancelInfo.error ? (
+              <div className="bk-cancel">
+                <div className="bk-cancel-icon">⚠️</div>
+                <div className="bk-cancel-title">Enlace no válido</div>
+                <div className="bk-cancel-sub">Este enlace de cancelación no es válido o ya ha expirado.</div>
+              </div>
+            ) : cancelInfo.alreadyCancelled || cancelDone ? (
+              <div className="bk-cancel">
+                <div className="bk-cancel-icon">✓</div>
+                <div className="bk-cancel-title">Reserva cancelada</div>
+                <div className="bk-cancel-sub">Tu cita ha sido cancelada correctamente. Si fue un error, contacta con {tenant.name}.</div>
+              </div>
+            ) : (
+              <div className="bk-cancel">
+                <div className="bk-cancel-icon">🗓</div>
+                <div className="bk-cancel-title">¿Cancelar tu cita?</div>
+                <div className="bk-cancel-sub">Esta acción no se puede deshacer. ¿Seguro que quieres cancelar?</div>
+                <div className="bk-cancel-detail">
+                  <div className="bk-cancel-row">
+                    <span className="bk-cancel-key">Cliente</span>
+                    <span className="bk-cancel-val">{cancelInfo.customerName}</span>
+                  </div>
+                  <div className="bk-cancel-row">
+                    <span className="bk-cancel-key">Fecha</span>
+                    <span className="bk-cancel-val">{fmtDate(cancelInfo.date)}</span>
+                  </div>
+                  <div className="bk-cancel-row">
+                    <span className="bk-cancel-key">Hora</span>
+                    <span className="bk-cancel-val">{cancelInfo.startTime} h</span>
+                  </div>
+                  {cancelInfo.referenceCode && (
+                    <div className="bk-cancel-row">
+                      <span className="bk-cancel-key">Referencia</span>
+                      <span className="bk-cancel-val" style={{ fontFamily: "monospace", letterSpacing: "0.1em" }}>{cancelInfo.referenceCode}</span>
+                    </div>
+                  )}
+                </div>
+                {tenant.cancellationPolicy && (
+                  <div className="bk-policy" style={{ marginBottom: "20px" }}>
+                    <div className="bk-policy-title">Política de cancelación</div>
+                    <div className="bk-policy-text">{tenant.cancellationPolicy}</div>
+                  </div>
+                )}
+                <div className="bk-cancel-actions">
+                  <button className="bk-btn-cancel-confirm" onClick={doCancel} disabled={cancelLoading}>
+                    {cancelLoading ? "Cancelando…" : "Sí, cancelar mi cita"}
+                  </button>
+                  <button className="bk-btn-cancel-back" onClick={() => window.location.href = `/booking/${slug}`}>
+                    No, mantener la cita
+                  </button>
+                </div>
+              </div>
+            )}
+          </main>
+          <footer className="bk-footer">Gestionado con&nbsp;<span className="bk-powered">Fresco</span></footer>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <style>{styles}</style>
@@ -1030,6 +1154,7 @@ export default function BookingPage() {
               fieldValues={fieldValues}
               setFieldValues={setFieldValues}
               serviceFields={service?.fields || []}
+              tenant={tenant}
               error={error}
               submitting={submitting}
               onBack={() => { setStep(3); setError(null); }}
@@ -1260,7 +1385,7 @@ function StepDateTime({
 function StepDetails({
   service, employee, date, slot,
   form, setForm, fieldValues, setFieldValues, serviceFields,
-  error, submitting, onBack, onSubmit,
+  tenant, error, submitting, onBack, onSubmit,
 }) {
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const setFv = (id, v) =>
@@ -1311,6 +1436,9 @@ function StepDetails({
             {f.fieldType === "SELECT" ? (
               <select className={`bk-input bk-select`} value={fv?.value || ""} onChange={(e) => setFv(f.id, e.target.value)}>
                 <option value="">Seleccionar…</option>
+                {(f.options || []).map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
               </select>
             ) : (
               <input
@@ -1330,6 +1458,13 @@ function StepDetails({
         <textarea className={`bk-input bk-textarea`} value={form.notes} onChange={(e) => setField("notes", e.target.value)} placeholder="Cualquier información adicional…" />
       </div>
 
+      {tenant?.cancellationPolicy && (
+        <div className="bk-policy">
+          <div className="bk-policy-title">Política de cancelación</div>
+          <div className="bk-policy-text">{tenant.cancellationPolicy}</div>
+        </div>
+      )}
+
       <button className="bk-btn-primary" onClick={onSubmit} disabled={submitting}>
         {submitting ? "Confirmando…" : "Confirmar reserva"}
       </button>
@@ -1346,6 +1481,12 @@ function StepConfirmation({ booked, service, employee, date, slot, tenant }) {
         Hemos registrado tu cita en {tenant.name}.<br />
         {booked?.customerEmail && "Recibirás los detalles en tu correo electrónico."}
       </div>
+      {booked?.referenceCode && (
+        <div style={{ textAlign: "center", margin: "12px 0 20px" }}>
+          <div style={{ fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-muted)", marginBottom: "6px" }}>Código de reserva</div>
+          <div style={{ display: "inline-block", background: "var(--blue)", color: "#fff", fontFamily: "monospace", fontSize: "1.4rem", fontWeight: 700, letterSpacing: "0.2em", padding: "8px 24px", borderRadius: "8px" }}>{booked.referenceCode}</div>
+        </div>
+      )}
       <div className="bk-confirm-detail">
         <div className="bk-confirm-row">
           <span className="bk-confirm-icon-sm">✂</span>

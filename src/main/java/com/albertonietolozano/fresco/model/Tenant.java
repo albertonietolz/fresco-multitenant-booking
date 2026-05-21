@@ -43,4 +43,7 @@ public class Tenant {
 
     @Builder.Default
     private Boolean allowEmployeeChoice = false;
+
+    @Column(columnDefinition = "TEXT")
+    private String cancellationPolicy;
 }

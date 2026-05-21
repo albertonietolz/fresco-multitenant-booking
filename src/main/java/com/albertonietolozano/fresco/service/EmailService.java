@@ -31,7 +31,11 @@ public class EmailService {
             String tenantName,
             String serviceName,
             LocalDate date,
-            LocalTime startTime
+            LocalTime startTime,
+            String referenceCode,
+            String cancelToken,
+            String slug,
+            String cancellationPolicy
     ) {
         if (fromAddress == null || fromAddress.isBlank()) {
             log.warn("Email no configurado (MAIL_USERNAME vacío). Saltando envío a {}", to);
@@ -40,6 +44,20 @@ public class EmailService {
         try {
             String dateStr  = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
             String timeStr  = startTime.format(DateTimeFormatter.ofPattern("HH:mm"));
+
+            String appBase  = "http://localhost:5173";
+            String cancelUrl = appBase + "/booking/" + slug + "?cancel=" + cancelToken;
+
+            String policyBlock = (cancellationPolicy != null && !cancellationPolicy.isBlank())
+                    ? """
+                      <tr>
+                        <td style="padding:20px 24px 0;">
+                          <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#6a5f52;text-transform:uppercase;letter-spacing:0.06em;">Política de cancelación</p>
+                          <p style="margin:0;font-size:13px;color:#6a5f52;line-height:1.6;">%s</p>
+                        </td>
+                      </tr>
+                      """.formatted(cancellationPolicy)
+                    : "";
 
             String html = """
                     <!DOCTYPE html>
@@ -65,10 +83,18 @@ public class EmailService {
                                 <p style="margin:0 0 28px;font-size:14px;color:#6a5f52;line-height:1.6;">Tu reserva ha sido registrada correctamente. Aquí tienes el resumen:</p>
 
                                 <!-- Tarjeta de detalle -->
-                                <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f4f0e6;border-radius:8px;overflow:hidden;margin-bottom:28px;">
+                                <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f4f0e6;border-radius:8px;overflow:hidden;margin-bottom:20px;">
                                   <tr>
                                     <td style="padding:20px 24px;">
                                       <table width="100%%" cellpadding="0" cellspacing="0">
+                                        <tr>
+                                          <td style="padding:7px 0;border-bottom:1px solid #d8cfc0;">
+                                            <span style="font-size:12px;color:#6a5f52;text-transform:uppercase;letter-spacing:0.06em;">Referencia</span>
+                                          </td>
+                                          <td align="right" style="padding:7px 0;border-bottom:1px solid #d8cfc0;">
+                                            <strong style="font-size:14px;color:#1a3070;font-family:monospace;letter-spacing:0.12em;">%s</strong>
+                                          </td>
+                                        </tr>
                                         <tr>
                                           <td style="padding:7px 0;border-bottom:1px solid #d8cfc0;">
                                             <span style="font-size:12px;color:#6a5f52;text-transform:uppercase;letter-spacing:0.06em;">Servicio</span>
@@ -96,10 +122,20 @@ public class EmailService {
                                       </table>
                                     </td>
                                   </tr>
+                                  %s
                                 </table>
 
-                                <p style="margin:0;font-size:14px;color:#6a5f52;line-height:1.7;">
-                                  Si necesitas cancelar o modificar tu cita, contacta directamente con <strong style="color:#110e0a;">%s</strong>.
+                                <!-- Botón cancelar -->
+                                <table width="100%%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                                  <tr>
+                                    <td align="center">
+                                      <a href="%s" style="display:inline-block;padding:10px 24px;background:#f4f0e6;color:#6a5f52;border:1px solid #d8cfc0;border-radius:6px;font-size:13px;text-decoration:none;font-family:'Helvetica Neue',Arial,sans-serif;">Cancelar mi cita</a>
+                                    </td>
+                                  </tr>
+                                </table>
+
+                                <p style="margin:0;font-size:13px;color:#6a5f52;line-height:1.7;">
+                                  ¿Prefieres llamar? Contacta directamente con <strong style="color:#110e0a;">%s</strong>.
                                 </p>
                               </td>
                             </tr>
@@ -116,7 +152,8 @@ public class EmailService {
                       </table>
                     </body>
                     </html>
-                    """.formatted(tenantName, customerName, serviceName, dateStr, timeStr, tenantName, tenantName);
+                    """.formatted(tenantName, customerName, referenceCode, serviceName, dateStr, timeStr,
+                            policyBlock, cancelUrl, tenantName, tenantName);
 
             var message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
