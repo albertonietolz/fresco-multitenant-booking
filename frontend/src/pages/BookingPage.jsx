@@ -919,6 +919,23 @@ export default function BookingPage() {
       .catch(() => setStep(2));
   }, [service, tenant]);
 
+  // Re-filter employees by date once the user picks a date, so blocked/off-day employees disappear.
+  // If the already-selected employee is no longer available, send the user back to employee selection.
+  useEffect(() => {
+    if (!service || !tenant || !date || !tenant.allowEmployeeChoice) return;
+    pub(`/${slug}/booking/employees/${service.id}?date=${date}`)
+      .then((data) => {
+        const active = data.filter((e) => e.active);
+        setEmployees(active);
+        if (employee && employee.id != null && !active.some((e) => e.id === employee.id)) {
+          setEmployee(null);
+          setSlot(null);
+          setStep(2);
+        }
+      })
+      .catch(() => {});
+  }, [date, service, tenant]);
+
   useEffect(() => {
     if (!service || !employee || !date) return;
     setSlotsLoading(true);

@@ -184,6 +184,39 @@ class TenantDocument {
       );
 }
 
+class Client {
+  final int id;
+  final int tenantId;
+  final String name;
+  final String? email;
+  final String? phone;
+  final String? notes;
+  final int? preferredEmployeeId;
+  final int? preferredServiceId;
+
+  Client({required this.id, required this.tenantId, required this.name, this.email, this.phone, this.notes, this.preferredEmployeeId, this.preferredServiceId});
+
+  factory Client.fromJson(Map<String, dynamic> j) => Client(
+        id: j['id'],
+        tenantId: j['tenantId'],
+        name: j['name'],
+        email: j['email'],
+        phone: j['phone'],
+        notes: j['notes'],
+        preferredEmployeeId: j['preferredEmployeeId'],
+        preferredServiceId: j['preferredServiceId'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'notes': notes,
+        'preferredEmployeeId': preferredEmployeeId,
+        'preferredServiceId': preferredServiceId,
+      };
+}
+
 class ScheduleBookingSlot {
   final String startTime;
   final String endTime;

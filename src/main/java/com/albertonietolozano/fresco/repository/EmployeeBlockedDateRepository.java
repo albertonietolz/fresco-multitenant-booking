@@ -13,6 +13,8 @@ public interface EmployeeBlockedDateRepository extends JpaRepository<EmployeeBlo
 
     boolean existsByTenantIdAndEmployeeIdAndDate(Long tenantId, Long employeeId, LocalDate date);
 
+    List<EmployeeBlockedDate> findAllByTenantIdAndDate(Long tenantId, LocalDate date);
+
     @Transactional
     void deleteByTenantIdAndEmployeeIdAndDate(Long tenantId, Long employeeId, LocalDate date);
 }

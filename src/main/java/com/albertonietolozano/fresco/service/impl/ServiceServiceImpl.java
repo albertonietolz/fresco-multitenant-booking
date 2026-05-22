@@ -4,6 +4,7 @@ import com.albertonietolozano.fresco.dto.request.ServiceRequest;
 import com.albertonietolozano.fresco.dto.response.CustomFieldResponse;
 import com.albertonietolozano.fresco.dto.response.ServiceResponse;
 import com.albertonietolozano.fresco.model.Service;
+import com.albertonietolozano.fresco.repository.CustomFieldOptionRepository;
 import com.albertonietolozano.fresco.repository.CustomFieldRepository;
 import com.albertonietolozano.fresco.repository.ServiceRepository;
 import com.albertonietolozano.fresco.service.ServiceService;
@@ -16,10 +17,12 @@ public class ServiceServiceImpl implements ServiceService {
 
     private final ServiceRepository serviceRepository;
     private final CustomFieldRepository customFieldRepository;
+    private final CustomFieldOptionRepository customFieldOptionRepository;
 
-    public ServiceServiceImpl(ServiceRepository serviceRepository, CustomFieldRepository customFieldRepository) {
+    public ServiceServiceImpl(ServiceRepository serviceRepository, CustomFieldRepository customFieldRepository, CustomFieldOptionRepository customFieldOptionRepository) {
         this.serviceRepository = serviceRepository;
         this.customFieldRepository = customFieldRepository;
+        this.customFieldOptionRepository = customFieldOptionRepository;
     }
 
     @Override
@@ -101,7 +104,8 @@ public class ServiceServiceImpl implements ServiceService {
         List<CustomFieldResponse> fields = customFieldRepository
                 .findAllByTenantIdAndServiceId(service.getTenantId(), service.getId())
                 .stream()
-                .map(f -> new CustomFieldResponse(f.getId(), f.getLabel(), f.getFieldType(), f.getRequired(), f.getFieldOrder(), List.of()))
+                .map(f -> new CustomFieldResponse(f.getId(), f.getLabel(), f.getFieldType(), f.getRequired(), f.getFieldOrder(),
+                        customFieldOptionRepository.findAllByCustomFieldIdOrderBySortOrderAsc(f.getId()).stream().map(o -> o.getLabel()).collect(java.util.stream.Collectors.toList())))
                 .toList();
 
         return new ServiceResponse(service.getId(), service.getName(), service.getDuration(), service.getCapacity(), service.getChairTime(), service.getPrice(), service.getActive(), fields, service.getDefaultEmployeeId());

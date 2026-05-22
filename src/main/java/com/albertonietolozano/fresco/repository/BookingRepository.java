@@ -15,6 +15,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findAllByEmployeeIdIsNullAndServiceIdAndDate(Long serviceId, LocalDate date);
 
+    List<Booking> findAllByTenantIdAndServiceIdAndDate(Long tenantId, Long serviceId, LocalDate date);
+
     List<Booking> findAllByTenantIdAndDate(Long tenantId, LocalDate date);
 
     List<Booking> findAllByTenantIdAndDateBetween(Long tenantId, LocalDate from, LocalDate to);

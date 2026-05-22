@@ -10,6 +10,7 @@ import com.albertonietolozano.fresco.model.WorkingHours;
 import com.albertonietolozano.fresco.model.enums.BookingStatus;
 import com.albertonietolozano.fresco.repository.BookingRepository;
 import com.albertonietolozano.fresco.repository.EmployeeRepository;
+import com.albertonietolozano.fresco.repository.ServiceRepository;
 import com.albertonietolozano.fresco.repository.WorkingHoursRepository;
 import com.albertonietolozano.fresco.service.BookingService;
 import com.albertonietolozano.fresco.tenant.TenantContext;
@@ -32,15 +33,18 @@ public class BookingController {
     private final BookingRepository bookingRepository;
     private final EmployeeRepository employeeRepository;
     private final WorkingHoursRepository workingHoursRepository;
+    private final ServiceRepository serviceRepository;
 
     public BookingController(BookingService bookingService,
                              BookingRepository bookingRepository,
                              EmployeeRepository employeeRepository,
-                             WorkingHoursRepository workingHoursRepository) {
+                             WorkingHoursRepository workingHoursRepository,
+                             ServiceRepository serviceRepository) {
         this.bookingService = bookingService;
         this.bookingRepository = bookingRepository;
         this.employeeRepository = employeeRepository;
         this.workingHoursRepository = workingHoursRepository;
+        this.serviceRepository = serviceRepository;
     }
 
     @GetMapping
@@ -66,7 +70,9 @@ public class BookingController {
         if (booking == null) return ResponseEntity.notFound().build();
 
         LocalTime slotStart = booking.getStartTime();
-        LocalTime slotEnd = slotStart.plusMinutes(30);
+        int serviceDuration = serviceRepository.findById(booking.getServiceId())
+                .map(s -> s.getDuration()).orElse(30);
+        LocalTime slotEnd = slotStart.plusMinutes(serviceDuration);
 
         List<WorkingHours> onDuty = workingHoursRepository
                 .findAllByTenantIdAndDayOfWeekAndEmployeeIdIsNotNull(tenantId, booking.getDate().getDayOfWeek())

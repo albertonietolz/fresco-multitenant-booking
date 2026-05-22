@@ -61,7 +61,6 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .build();
 
         if (request.pin() != null && !request.pin().isBlank()) {
-            employee.setPin(request.pin());
             employee.setPinHash(passwordEncoder.encode(request.pin()));
         }
 
@@ -81,7 +80,6 @@ public class EmployeeServiceImpl implements EmployeeService {
         employee.setServiceIds(request.serviceIds() != null ? request.serviceIds() : List.of());
 
         if (request.pin() != null && !request.pin().isBlank()) {
-            employee.setPin(request.pin());
             employee.setPinHash(passwordEncoder.encode(request.pin()));
         }
 
@@ -116,8 +114,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                 employee.getUserId(),
                 employee.getActive(),
                 employee.getServiceIds(),
-                employee.getPinHash() != null,
-                employee.getPin()
+                employee.getPinHash() != null
         );
     }
 }

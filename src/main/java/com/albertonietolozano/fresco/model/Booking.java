@@ -33,7 +33,6 @@ public class Booking {
     @Column(nullable = false)
     private String customerName;
 
-    @Column(nullable = false)
     private String customerEmail;
 
     private String customerPhone;

@@ -1990,10 +1990,10 @@ const styles = `
   .view-toggle-btn.active { background: var(--blue); color: #fff; font-weight: 500; }
 
   /* ── EMP BLOCKED DATES MODAL ── */
-  .blocked-cal { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  .blocked-cal { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 10px 0; }
   .blocked-cal th { font-size: 0.66rem; font-weight: 600; color: var(--ink-muted); text-align: center; padding: 4px 2px; text-transform: uppercase; letter-spacing: 0.08em; }
-  .blocked-cal td { text-align: center; padding: 3px; }
-  .blocked-cal-btn { width: 34px; height: 34px; border-radius: 6px; border: 1.5px solid transparent; background: var(--stone); font-size: 0.82rem; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
+  .blocked-cal td { text-align: center; padding: 2px; }
+  .blocked-cal-btn { width: 30px; height: 30px; border-radius: 6px; border: 1.5px solid transparent; background: var(--stone); font-size: 0.82rem; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
   .blocked-cal-btn:hover { border-color: var(--blue-light); background: rgba(26,48,112,0.06); }
   .blocked-cal-btn.blocked { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 600; }
   .blocked-cal-btn.past { opacity: 0.35; cursor: not-allowed; }
@@ -2002,6 +2002,17 @@ const styles = `
   .blocked-cal-month { font-size: 0.86rem; font-weight: 600; color: var(--ink); }
   .blocked-cal-nav-btn { width: 28px; height: 28px; border: 1.5px solid var(--stone-border); border-radius: 5px; background: var(--white); cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
   .blocked-cal-nav-btn:hover { border-color: var(--blue-light); }
+
+  /* ── CLIENTES ── */
+  .client-search { width: 100%; max-width: 340px; padding: 9px 13px; border: 1.5px solid var(--stone-border); border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; color: var(--ink); background: var(--white); outline: none; transition: border-color 0.15s; margin-bottom: 20px; }
+  .client-search:focus { border-color: var(--blue); }
+  .client-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .client-card { background: var(--white); border: 1px solid var(--stone-border); border-radius: 10px; padding: 18px; box-shadow: 0 1px 4px rgba(8,12,30,0.04); transition: box-shadow 0.18s; }
+  .client-card:hover { box-shadow: 0 4px 16px rgba(8,12,30,0.09); }
+  .client-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+  .client-meta { font-size: 0.75rem; color: var(--ink-muted); margin-bottom: 3px; }
+  .client-badge { display: inline-block; background: var(--ochre-dim); color: var(--ochre); border-radius: 20px; padding: 2px 10px; font-size: 0.7rem; font-weight: 500; margin-right: 4px; margin-top: 6px; }
+  .client-actions { display: flex; gap: 6px; margin-top: 12px; }
 `;
 
 
@@ -2093,6 +2104,7 @@ export default function DashboardPage() {
     { id: "empresa",   label: "Mi empresa" },
     { id: "services",  label: "Servicios" },
     { id: "employees", label: "Empleados" },
+    { id: "clientes",  label: "Clientes" },
     { id: "hours",     label: "Horarios" },
     { id: "suscripcion", label: "Suscripción" },
   ];
@@ -2103,6 +2115,7 @@ export default function DashboardPage() {
     empresa:     "Mi empresa",
     services:    "Servicios",
     employees:   "Empleados",
+    clientes:    "Clientes",
     hours:       "Horarios",
     suscripcion: "Suscripción",
   };
@@ -2181,6 +2194,7 @@ export default function DashboardPage() {
             {section === "empresa"   && <Empresa onHoursSaved={() => setHasBusinessHours(true)} />}
             {section === "services"  && <Services />}
             {section === "employees" && <Employees />}
+            {section === "clientes"  && <Clientes />}
             {section === "hours"     && <Hours />}
             {section === "suscripcion" && <Subscription />}
           </div>
@@ -4016,6 +4030,174 @@ function Employees() {
       )}
       {blockedDatesEmp && (
         <EmpBlockedDatesModal emp={blockedDatesEmp} onClose={() => setBlockedDatesEmp(null)} />
+      )}
+    </>
+  );
+}
+
+/* ── CLIENTES ── */
+function Clientes() {
+  const token = localStorage.getItem("token");
+  const authH = { Authorization: `Bearer ${token}` };
+
+  const [clients, setClients] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [services, setServices] = useState([]);
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+  const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "", preferredEmployeeId: "", preferredServiceId: "" });
+  const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API}/api/clients`, { headers: authH }).then((r) => r.json()).then(setClients).catch(() => {});
+    fetch(`${API}/api/employees`, { headers: authH }).then((r) => r.json()).then(setEmployees).catch(() => {});
+    fetch(`${API}/api/services`, { headers: authH }).then((r) => r.json()).then(setServices).catch(() => {});
+  }, []);
+
+  const openCreate = () => {
+    setEditingClient(null);
+    setForm({ name: "", email: "", phone: "", notes: "", preferredEmployeeId: "", preferredServiceId: "" });
+    setModal(true);
+  };
+
+  const openEdit = (c) => {
+    setEditingClient(c);
+    setForm({
+      name: c.name || "",
+      email: c.email || "",
+      phone: c.phone || "",
+      notes: c.notes || "",
+      preferredEmployeeId: c.preferredEmployeeId != null ? String(c.preferredEmployeeId) : "",
+      preferredServiceId: c.preferredServiceId != null ? String(c.preferredServiceId) : "",
+    });
+    setModal(true);
+  };
+
+  const save = async () => {
+    const body = {
+      name: form.name,
+      email: form.email || null,
+      phone: form.phone || null,
+      notes: form.notes || null,
+      preferredEmployeeId: form.preferredEmployeeId ? Number(form.preferredEmployeeId) : null,
+      preferredServiceId: form.preferredServiceId ? Number(form.preferredServiceId) : null,
+    };
+    try {
+      const url = editingClient ? `${API}/api/clients/${editingClient.id}` : `${API}/api/clients`;
+      const method = editingClient ? "PUT" : "POST";
+      const r = await fetch(url, { method, headers: { ...authH, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error();
+      const saved = await r.json();
+      if (editingClient) {
+        setClients((prev) => prev.map((c) => c.id === saved.id ? saved : c));
+      } else {
+        setClients((prev) => [...prev, saved]);
+      }
+      setModal(false);
+      setMsg({ type: "ok", text: editingClient ? "Cliente actualizado." : "Cliente creado." });
+      setTimeout(() => setMsg(null), 3000);
+    } catch {
+      setMsg({ type: "err", text: "Error al guardar el cliente." });
+    }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm("¿Eliminar este cliente?")) return;
+    try {
+      await fetch(`${API}/api/clients/${id}`, { method: "DELETE", headers: authH });
+      setClients((prev) => prev.filter((c) => c.id !== id));
+    } catch {
+      setMsg({ type: "err", text: "Error al eliminar." });
+    }
+  };
+
+  const filtered = clients.filter((c) => {
+    const q = search.toLowerCase();
+    return !q || c.name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q);
+  });
+
+  const empName = (id) => employees.find((e) => e.id === id)?.name;
+  const svcName = (id) => services.find((s) => s.id === id)?.name;
+
+  return (
+    <>
+      {msg && <div className={`alert ${msg.type}`}>{msg.text}</div>}
+      <div className="section-header">
+        <div className="section-title">Clientes</div>
+        <button className="btn-primary" onClick={openCreate}>+ Nuevo cliente</button>
+      </div>
+      <input
+        className="client-search"
+        placeholder="Buscar por nombre o email…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      {filtered.length === 0 ? (
+        <div className="empty">No hay clientes registrados.</div>
+      ) : (
+        <div className="client-grid">
+          {filtered.map((c) => (
+            <div key={c.id} className="client-card">
+              <div className="client-name">{c.name}</div>
+              {c.email && <div className="client-meta">✉ {c.email}</div>}
+              {c.phone && <div className="client-meta">☎ {c.phone}</div>}
+              <div>
+                {c.preferredEmployeeId && <span className="client-badge">👤 {empName(c.preferredEmployeeId) || `#${c.preferredEmployeeId}`}</span>}
+                {c.preferredServiceId && <span className="client-badge">✂ {svcName(c.preferredServiceId) || `#${c.preferredServiceId}`}</span>}
+              </div>
+              <div className="client-actions">
+                <button className="btn-sm" onClick={() => openEdit(c)}>Editar</button>
+                <button className="btn-danger" onClick={() => remove(c.id)}>Eliminar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {modal && (
+        <div className="overlay" onClick={() => setModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">{editingClient ? "Editar cliente" : "Nuevo cliente"}</div>
+            <div className="form-field">
+              <label>Nombre *</label>
+              <input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+            </div>
+            <div className="two-col">
+              <div className="form-field">
+                <label>Email</label>
+                <input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+              </div>
+              <div className="form-field">
+                <label>Teléfono</label>
+                <input value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
+              </div>
+            </div>
+            <div className="form-field">
+              <label>Notas</label>
+              <textarea rows={3} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
+            </div>
+            <div className="two-col">
+              <div className="form-field">
+                <label>Empleado preferido</label>
+                <select value={form.preferredEmployeeId} onChange={(e) => setForm((p) => ({ ...p, preferredEmployeeId: e.target.value }))}>
+                  <option value="">— Ninguno —</option>
+                  {employees.filter((e) => e.active).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+              <div className="form-field">
+                <label>Servicio preferido</label>
+                <select value={form.preferredServiceId} onChange={(e) => setForm((p) => ({ ...p, preferredServiceId: e.target.value }))}>
+                  <option value="">— Ninguno —</option>
+                  {services.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setModal(false)}>Cancelar</button>
+              <button className="btn-primary" onClick={save} disabled={!form.name}>Guardar</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

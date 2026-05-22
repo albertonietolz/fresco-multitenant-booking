@@ -7,14 +7,17 @@ import com.albertonietolozano.fresco.dto.response.BookingFieldValueResponse;
 import com.albertonietolozano.fresco.dto.response.BookingResponse;
 import com.albertonietolozano.fresco.model.Booking;
 import com.albertonietolozano.fresco.model.BookingFieldValue;
+import com.albertonietolozano.fresco.model.Employee;
 import com.albertonietolozano.fresco.model.Service;
 import com.albertonietolozano.fresco.model.Tenant;
 import com.albertonietolozano.fresco.model.WorkingHours;
 import com.albertonietolozano.fresco.model.enums.BookingStatus;
 import com.albertonietolozano.fresco.repository.BookingFieldValueRepository;
 import com.albertonietolozano.fresco.repository.BookingRepository;
+import com.albertonietolozano.fresco.repository.ClientRepository;
 import com.albertonietolozano.fresco.repository.ClosedDateRepository;
 import com.albertonietolozano.fresco.repository.EmployeeBlockedDateRepository;
+import com.albertonietolozano.fresco.repository.EmployeeRepository;
 import com.albertonietolozano.fresco.repository.ServiceRepository;
 import com.albertonietolozano.fresco.repository.TenantRepository;
 import com.albertonietolozano.fresco.repository.WorkingHoursRepository;
@@ -30,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -45,6 +49,8 @@ public class BookingServiceImpl implements BookingService {
     private final ClosedDateRepository closedDateRepository;
     private final EmployeeBlockedDateRepository empBlockedDateRepository;
     private final EmailService emailService;
+    private final ClientRepository clientRepository;
+    private final EmployeeRepository employeeRepository;
 
     public BookingServiceImpl(
             BookingRepository bookingRepository,
@@ -54,7 +60,9 @@ public class BookingServiceImpl implements BookingService {
             TenantRepository tenantRepository,
             ClosedDateRepository closedDateRepository,
             EmployeeBlockedDateRepository empBlockedDateRepository,
-            EmailService emailService
+            EmailService emailService,
+            ClientRepository clientRepository,
+            EmployeeRepository employeeRepository
     ) {
         this.bookingRepository = bookingRepository;
         this.bookingFieldValueRepository = bookingFieldValueRepository;
@@ -64,6 +72,8 @@ public class BookingServiceImpl implements BookingService {
         this.closedDateRepository = closedDateRepository;
         this.empBlockedDateRepository = empBlockedDateRepository;
         this.emailService = emailService;
+        this.clientRepository = clientRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     @Override
@@ -113,12 +123,44 @@ public class BookingServiceImpl implements BookingService {
             return new AvailabilityResponse(List.of());
         }
 
-        List<Booking> existingBookings = (employeeId == null
-                ? bookingRepository.findAllByEmployeeIdIsNullAndServiceIdAndDate(service.getId(), date)
-                : bookingRepository.findAllByEmployeeIdAndDate(employeeId, date))
-                .stream()
-                .filter(b -> b.getStatus() != BookingStatus.CANCELLED)
-                .toList();
+        // capacity = null → individual; capacity = 0 → unlimited group; capacity > 0 → limited group.
+        boolean isGroupService = service.getCapacity() != null && service.getCapacity() >= 0;
+
+        // For group services without a specified employee, count all bookings for this service.
+        // For individual services without a specified employee, we need per-eligible-employee bookings
+        // to determine if at least one employee is free (computed lazily below).
+        List<Booking> existingBookings;
+        Map<Long, List<Booking>> bookingsByEligibleEmployee = null; // used only for individual+no-employee
+        Set<Long> eligibleEmployeeIds = null;
+
+        if (employeeId == null) {
+            if (isGroupService) {
+                existingBookings = (resolvedTenantId != null
+                        ? bookingRepository.findAllByTenantIdAndServiceIdAndDate(resolvedTenantId, service.getId(), date)
+                        : bookingRepository.findAllByEmployeeIdIsNullAndServiceIdAndDate(service.getId(), date))
+                        .stream().filter(b -> b.getStatus() != BookingStatus.CANCELLED).toList();
+            } else {
+                // Individual + no employee: slot is available when at least one eligible employee is free.
+                // Preload bookings per eligible employee to avoid repeated DB calls in the slot loop.
+                eligibleEmployeeIds = employeeRepository.findAllByTenantIdAndActiveTrue(resolvedTenantId).stream()
+                        .filter(e -> e.getServiceIds() == null || e.getServiceIds().isEmpty() || e.getServiceIds().contains(serviceId))
+                        .filter(e -> !empBlockedDateRepository.existsByTenantIdAndEmployeeIdAndDate(resolvedTenantId, e.getId(), date))
+                        .map(Employee::getId)
+                        .collect(java.util.stream.Collectors.toSet());
+                bookingsByEligibleEmployee = new HashMap<>();
+                for (Long eid : eligibleEmployeeIds) {
+                    bookingsByEligibleEmployee.put(eid,
+                            bookingRepository.findAllByEmployeeIdAndDate(eid, date).stream()
+                                    .filter(b -> b.getStatus() != BookingStatus.CANCELLED).toList());
+                }
+                // existingBookings = union of all eligible employees' bookings (used for serviceBlockingMinutes)
+                existingBookings = bookingsByEligibleEmployee.values().stream()
+                        .flatMap(java.util.Collection::stream).toList();
+            }
+        } else {
+            existingBookings = bookingRepository.findAllByEmployeeIdAndDate(employeeId, date).stream()
+                    .filter(b -> b.getStatus() != BookingStatus.CANCELLED).toList();
+        }
 
         Map<Long, Integer> serviceBlockingMinutes = existingBookings.stream()
                 .map(Booking::getServiceId)
@@ -175,6 +217,19 @@ public class BookingServiceImpl implements BookingService {
                             .filter(b -> b.getServiceId().equals(serviceId) && b.getStartTime().equals(slotStart))
                             .count();
                     slotOk = bookingsAtSlot < service.getCapacity();
+                } else if (bookingsByEligibleEmployee != null) {
+                    // Individual service, no employee specified: slot is ok if at least one eligible employee is free.
+                    final LocalTime fSlotStart = slotStart;
+                    final LocalTime fSlotEnd = slotEnd;
+                    boolean anyFree = bookingsByEligibleEmployee.entrySet().stream().anyMatch(entry -> {
+                        boolean empHasConflict = entry.getValue().stream().anyMatch(b -> {
+                            Integer blockMins = serviceBlockingMinutes.getOrDefault(b.getServiceId(), duration);
+                            LocalTime bookingEnd = b.getStartTime().plusMinutes(blockMins);
+                            return fSlotStart.isBefore(bookingEnd) && b.getStartTime().isBefore(fSlotEnd);
+                        });
+                        return !empHasConflict;
+                    });
+                    slotOk = anyFree;
                 } else {
                     boolean isOccupied = existingBookings.stream().anyMatch(b -> {
                         LocalTime bookingEnd = b.getStartTime().plusMinutes(serviceBlockingMinutes.get(b.getServiceId()));
@@ -237,9 +292,54 @@ public class BookingServiceImpl implements BookingService {
             throw new RuntimeException("The requested time slot is not available");
         }
 
-        Long resolvedEmployeeId = request.employeeId() != null
-                ? request.employeeId()
-                : requestedService.getDefaultEmployeeId();
+        Long resolvedEmployeeId;
+        if (request.employeeId() != null) {
+            resolvedEmployeeId = request.employeeId();
+        } else {
+            resolvedEmployeeId = null;
+            // 1. Empleado asignado al cliente (skip si no puede hacer el servicio o tiene el día bloqueado)
+            if (request.customerEmail() != null && !request.customerEmail().isBlank()) {
+                resolvedEmployeeId = clientRepository
+                        .findByTenantIdAndEmail(tenantId, request.customerEmail())
+                        .map(c -> c.getPreferredEmployeeId())
+                        .filter(empId -> employeeRepository.findById(empId).map(e -> {
+                            if (!e.getTenantId().equals(tenantId) || !Boolean.TRUE.equals(e.getActive())) return false;
+                            List<Long> svcIds = e.getServiceIds();
+                            return svcIds == null || svcIds.isEmpty() || svcIds.contains(request.serviceId());
+                        }).orElse(false))
+                        .filter(empId -> !empBlockedDateRepository.existsByTenantIdAndEmployeeIdAndDate(tenantId, empId, request.date()))
+                        .orElse(null);
+            }
+            // 2. Empleado por defecto del servicio (skip si no puede hacer el servicio o tiene el día bloqueado)
+            if (resolvedEmployeeId == null) {
+                Long defEmp = requestedService.getDefaultEmployeeId();
+                if (defEmp != null) {
+                    boolean canDo = employeeRepository.findById(defEmp).map(e -> {
+                        List<Long> svcIds = e.getServiceIds();
+                        return Boolean.TRUE.equals(e.getActive()) && (svcIds == null || svcIds.isEmpty() || svcIds.contains(request.serviceId()));
+                    }).orElse(false);
+                    if (canDo && !empBlockedDateRepository.existsByTenantIdAndEmployeeIdAndDate(tenantId, defEmp, request.date())) {
+                        resolvedEmployeeId = defEmp;
+                    }
+                }
+            }
+            // 3. Fall back to least-busy active employee that can perform the service (excluding blocked)
+            if (resolvedEmployeeId == null) {
+                List<Booking> dayBookings = bookingRepository.findAllByTenantIdAndDate(tenantId, request.date());
+                Map<Long, Long> bookingCountByEmployee = dayBookings.stream()
+                        .filter(b -> b.getEmployeeId() != null)
+                        .collect(java.util.stream.Collectors.groupingBy(Booking::getEmployeeId, java.util.stream.Collectors.counting()));
+                resolvedEmployeeId = employeeRepository.findAllByTenantIdAndActiveTrue(tenantId).stream()
+                        .filter(e -> {
+                            List<Long> svcIds = e.getServiceIds();
+                            return svcIds == null || svcIds.isEmpty() || svcIds.contains(request.serviceId());
+                        })
+                        .filter(e -> !empBlockedDateRepository.existsByTenantIdAndEmployeeIdAndDate(tenantId, e.getId(), request.date()))
+                        .min(java.util.Comparator.comparingLong(e -> bookingCountByEmployee.getOrDefault(e.getId(), 0L)))
+                        .map(Employee::getId)
+                        .orElse(null);
+            }
+        }
 
         String refCode = generateReferenceCode();
         String cancelToken = UUID.randomUUID().toString();

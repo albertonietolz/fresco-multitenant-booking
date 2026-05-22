@@ -35,8 +35,6 @@ public class Employee {
     @Column(nullable = false)
     private Boolean active;
 
-    private String pin;
-
     // BCrypt del PIN de 4-6 dígitos que el dueño asigna para el acceso al portal de empleados.
     private String pinHash;
 

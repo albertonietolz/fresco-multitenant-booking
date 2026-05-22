@@ -2,9 +2,13 @@ package com.albertonietolozano.fresco.controller;
 
 import com.albertonietolozano.fresco.model.enums.BookingStatus;
 import com.albertonietolozano.fresco.repository.BookingRepository;
+import com.albertonietolozano.fresco.repository.EmployeeBlockedDateRepository;
+import com.albertonietolozano.fresco.repository.WorkingHoursRepository;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,6 +48,8 @@ public class PublicController {
     private final BookingService bookingService;
     private final TenantDocumentRepository tenantDocumentRepository;
     private final BookingRepository bookingRepository;
+    private final EmployeeBlockedDateRepository employeeBlockedDateRepository;
+    private final WorkingHoursRepository workingHoursRepository;
 
     public PublicController(
             TenantRepository tenantRepository,
@@ -51,7 +57,9 @@ public class PublicController {
             EmployeeService employeeService,
             BookingService bookingService,
             TenantDocumentRepository tenantDocumentRepository,
-            BookingRepository bookingRepository
+            BookingRepository bookingRepository,
+            EmployeeBlockedDateRepository employeeBlockedDateRepository,
+            WorkingHoursRepository workingHoursRepository
     ) {
         this.tenantRepository = tenantRepository;
         this.serviceService = serviceService;
@@ -59,6 +67,8 @@ public class PublicController {
         this.bookingService = bookingService;
         this.tenantDocumentRepository = tenantDocumentRepository;
         this.bookingRepository = bookingRepository;
+        this.employeeBlockedDateRepository = employeeBlockedDateRepository;
+        this.workingHoursRepository = workingHoursRepository;
     }
 
     @GetMapping("/services")
@@ -75,12 +85,36 @@ public class PublicController {
     @GetMapping("/employees/{serviceId}")
     public ResponseEntity<List<EmployeeResponse>> getEmployees(
             @PathVariable String slug,
-            @PathVariable Long serviceId
+            @PathVariable Long serviceId,
+            @RequestParam(required = false) LocalDate date
     ) {
         Long tenantId = resolveTenantId(slug);
         TenantContext.setTenantId(tenantId);
         try {
-            return ResponseEntity.ok(employeeService.getAllByServiceId(serviceId));
+            List<EmployeeResponse> employees = employeeService.getAllByServiceId(serviceId);
+            if (date == null) return ResponseEntity.ok(employees);
+
+            // Excluir empleados con día bloqueado
+            Set<Long> blockedIds = employeeBlockedDateRepository
+                    .findAllByTenantIdAndDate(tenantId, date)
+                    .stream()
+                    .map(b -> b.getEmployeeId())
+                    .collect(java.util.stream.Collectors.toSet());
+
+            // Excluir empleados sin horario ese día de la semana
+            DayOfWeek dow = date.getDayOfWeek();
+            Set<Long> withHours = workingHoursRepository
+                    .findAllByTenantIdAndDayOfWeekAndEmployeeIdIsNotNull(tenantId, dow)
+                    .stream()
+                    .map(wh -> wh.getEmployeeId())
+                    .collect(java.util.stream.Collectors.toSet());
+
+            List<EmployeeResponse> filtered = employees.stream()
+                    .filter(e -> !blockedIds.contains(e.id()))
+                    .filter(e -> withHours.contains(e.id()))
+                    .toList();
+
+            return ResponseEntity.ok(filtered);
         } finally {
             TenantContext.clear();
         }

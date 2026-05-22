@@ -7,6 +7,7 @@ import 'tabs/overview_tab.dart';
 import 'tabs/bookings_tab.dart';
 import 'tabs/services_tab.dart';
 import 'tabs/employees_tab.dart';
+import 'tabs/clients_tab.dart';
 import 'tabs/more_tab.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -25,10 +26,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     BookingsTab(),
     ServicesTab(),
     EmployeesTab(),
+    ClientsTab(),
     MoreTab(),
   ];
 
-  final _titles = ['Inicio', 'Reservas', 'Servicios', 'Empleados', 'Más'];
+  final _titles = ['Inicio', 'Reservas', 'Servicios', 'Empleados', 'Clientes', 'Más'];
 
   @override
   void initState() {
@@ -90,6 +92,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _dest(Icons.calendar_today_outlined, Icons.calendar_today_rounded, 'Reservas'),
             _dest(Icons.medical_services_outlined, Icons.medical_services_rounded, 'Servicios'),
             _dest(Icons.people_outline, Icons.people_rounded, 'Empleados'),
+            _dest(Icons.person_search_outlined, Icons.person_search_rounded, 'Clientes'),
             _dest(Icons.more_horiz, Icons.more_horiz, 'Más'),
           ],
         ),

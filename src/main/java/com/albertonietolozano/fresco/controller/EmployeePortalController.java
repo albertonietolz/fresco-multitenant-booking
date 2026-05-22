@@ -14,8 +14,11 @@ import com.albertonietolozano.fresco.model.Service;
 import com.albertonietolozano.fresco.model.Tenant;
 import com.albertonietolozano.fresco.model.WorkingHours;
 import com.albertonietolozano.fresco.model.enums.BookingStatus;
+import com.albertonietolozano.fresco.dto.response.ClientResponse;
+import com.albertonietolozano.fresco.model.Client;
 import com.albertonietolozano.fresco.repository.BookingFieldValueRepository;
 import com.albertonietolozano.fresco.repository.BookingRepository;
+import com.albertonietolozano.fresco.repository.ClientRepository;
 import com.albertonietolozano.fresco.repository.CustomFieldRepository;
 import com.albertonietolozano.fresco.repository.EmployeeBlockedDateRepository;
 import com.albertonietolozano.fresco.repository.EmployeeRepository;
@@ -61,6 +64,7 @@ public class EmployeePortalController {
     private final BookingService bookingService;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final ClientRepository clientRepository;
 
     public EmployeePortalController(
             TenantRepository tenantRepository,
@@ -73,7 +77,8 @@ public class EmployeePortalController {
             EmployeeBlockedDateRepository empBlockedDateRepository,
             BookingService bookingService,
             JwtService jwtService,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            ClientRepository clientRepository
     ) {
         this.tenantRepository = tenantRepository;
         this.employeeRepository = employeeRepository;
@@ -86,6 +91,7 @@ public class EmployeePortalController {
         this.bookingService = bookingService;
         this.jwtService = jwtService;
         this.passwordEncoder = passwordEncoder;
+        this.clientRepository = clientRepository;
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
@@ -407,24 +413,28 @@ public class EmployeePortalController {
     }
 
     // Crear reserva desde el portal del empleado.
+    // employeeId es opcional: si se omite o es null se usa auto-asignación (preferido del cliente →
+    // defecto del servicio → menos ocupado). Si se envía -1 se fuerza sin empleado asignado.
     @PostMapping("/emp/bookings")
     public ResponseEntity<BookingResponse> createBooking(@RequestBody Map<String, Object> body) {
         Long tenantId = TenantContext.getTenantId();
-        Long myId = empId();
 
         Long serviceId = ((Number) body.get("serviceId")).longValue();
         String dateStr = (String) body.get("date");
         String timeStr = (String) body.get("startTime");
         String customerName = (String) body.get("customerName");
-        String customerEmail = body.get("customerEmail") instanceof String s && !s.isBlank() ? s : "";
+        String customerEmail = body.get("customerEmail") instanceof String s && !s.isBlank() ? s : null;
         String customerPhone = body.get("customerPhone") instanceof String s && !s.isBlank() ? s : null;
         String notes = body.get("notes") instanceof String s && !s.isBlank() ? s : null;
+
+        // Si viene employeeId explícito se respeta; si no, se deja null para auto-asignación.
+        Long employeeId = body.get("employeeId") instanceof Number n ? n.longValue() : null;
 
         LocalDate date = LocalDate.parse(dateStr);
         LocalTime startTime = LocalTime.parse(timeStr.length() == 5 ? timeStr + ":00" : timeStr);
 
         BookingRequest request = new BookingRequest(
-                myId, serviceId, customerName, customerEmail, customerPhone,
+                employeeId, serviceId, customerName, customerEmail, customerPhone,
                 date, startTime, notes, List.of()
         );
 
@@ -540,5 +550,70 @@ public class EmployeePortalController {
         Long myId = empId();
         empBlockedDateRepository.deleteByTenantIdAndEmployeeIdAndDate(tenantId, myId, date);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/emp/clients")
+    public ResponseEntity<List<ClientResponse>> getClients() {
+        Long tenantId = TenantContext.getTenantId();
+        List<ClientResponse> list = clientRepository.findAllByTenantId(tenantId)
+                .stream()
+                .map(this::clientToResponse)
+                .toList();
+        return ResponseEntity.ok(list);
+    }
+
+    // Buscar cliente por email o teléfono para auto-rellenar el formulario de reserva.
+    @GetMapping("/emp/clients/lookup")
+    public ResponseEntity<ClientResponse> lookupClient(
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String phone) {
+        Long tenantId = TenantContext.getTenantId();
+        if (email != null && !email.isBlank()) {
+            return clientRepository.findByTenantIdAndEmail(tenantId, email)
+                    .map(this::clientToResponse).map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        }
+        if (phone != null && !phone.isBlank()) {
+            return clientRepository.findByTenantIdAndPhone(tenantId, phone)
+                    .map(this::clientToResponse).map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        }
+        return ResponseEntity.badRequest().build();
+    }
+
+    @PostMapping("/emp/clients")
+    public ResponseEntity<ClientResponse> createClient(@RequestBody Map<String, Object> body) {
+        Long tenantId = TenantContext.getTenantId();
+        com.albertonietolozano.fresco.model.Client client = com.albertonietolozano.fresco.model.Client.builder()
+                .tenantId(tenantId)
+                .name(body.get("name") instanceof String s ? s : null)
+                .email(body.get("email") instanceof String s && !s.isBlank() ? s : null)
+                .phone(body.get("phone") instanceof String s && !s.isBlank() ? s : null)
+                .notes(body.get("notes") instanceof String s && !s.isBlank() ? s : null)
+                .preferredEmployeeId(body.get("preferredEmployeeId") instanceof Number n ? n.longValue() : null)
+                .preferredServiceId(body.get("preferredServiceId") instanceof Number n ? n.longValue() : null)
+                .build();
+        return ResponseEntity.ok(clientToResponse(clientRepository.save(client)));
+    }
+
+    @PutMapping("/emp/clients/{id}")
+    public ResponseEntity<ClientResponse> updateClient(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Long tenantId = TenantContext.getTenantId();
+        com.albertonietolozano.fresco.model.Client client = clientRepository.findById(id)
+                .filter(c -> c.getTenantId().equals(tenantId))
+                .orElse(null);
+        if (client == null) return ResponseEntity.notFound().build();
+        if (body.get("name") instanceof String s) client.setName(s);
+        if (body.containsKey("email")) client.setEmail(body.get("email") instanceof String s && !s.isBlank() ? s : null);
+        if (body.containsKey("phone")) client.setPhone(body.get("phone") instanceof String s && !s.isBlank() ? s : null);
+        if (body.containsKey("notes")) client.setNotes(body.get("notes") instanceof String s && !s.isBlank() ? s : null);
+        if (body.containsKey("preferredEmployeeId")) client.setPreferredEmployeeId(body.get("preferredEmployeeId") instanceof Number n ? n.longValue() : null);
+        if (body.containsKey("preferredServiceId")) client.setPreferredServiceId(body.get("preferredServiceId") instanceof Number n ? n.longValue() : null);
+        return ResponseEntity.ok(clientToResponse(clientRepository.save(client)));
+    }
+
+    private ClientResponse clientToResponse(com.albertonietolozano.fresco.model.Client c) {
+        return new ClientResponse(c.getId(), c.getTenantId(), c.getName(), c.getEmail(),
+                c.getPhone(), c.getNotes(), c.getPreferredEmployeeId(), c.getPreferredServiceId());
     }
 }

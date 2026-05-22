@@ -847,10 +847,78 @@ function EquipoTab({ onBookingClick, showAlert }) {
   );
 }
 
+// ── Clientes Tab ─────────────────────────────────────────────────────────────
+
+function ClientesTab() {
+  const token = localStorage.getItem("empToken");
+  const authH = { Authorization: `Bearer ${token}` };
+  const [clients, setClients] = useState([]);
+  const [services, setServices] = useState([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API}/emp/clients`, { headers: authH }).then((r) => r.json()),
+      fetch(`${API}/emp/services`, { headers: authH }).then((r) => r.json()),
+    ]).then(([c, s]) => { setClients(c); setServices(s); }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const svcName = (id) => services.find((s) => s.id === id)?.name;
+
+  const filtered = clients.filter((c) => {
+    const q = search.toLowerCase();
+    return !q || c.name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q);
+  });
+
+  return (
+    <div className="emp-day-content">
+      <div className="emp-day-header">
+        <div className="emp-day-title">Clientes</div>
+      </div>
+      <input
+        style={{ width: "100%", maxWidth: 340, padding: "8px 12px", border: "1.5px solid var(--stone-border)", borderRadius: 6, fontFamily: "inherit", fontSize: "0.86rem", color: "var(--ink)", background: "var(--white)", outline: "none", marginBottom: 16 }}
+        placeholder="Buscar por nombre o email…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      {loading ? (
+        <div className="emp-loading">Cargando clientes…</div>
+      ) : filtered.length === 0 ? (
+        <div className="emp-no-bookings"><span className="emp-no-bookings-icon">👥</span>No hay clientes.</div>
+      ) : (
+        <div className="emp-booking-list">
+          {filtered.map((c) => (
+            <div key={c.id} className="emp-booking-card" style={{ cursor: "default" }}>
+              <div className="emp-booking-info">
+                <div className="emp-booking-client">{c.name}</div>
+                <div className="emp-booking-service">
+                  {c.email && <span>{c.email}</span>}
+                  {c.email && c.phone && <span> · </span>}
+                  {c.phone && <span>{c.phone}</span>}
+                </div>
+                {(c.preferredServiceId) && (
+                  <div style={{ marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {c.preferredServiceId && (
+                      <span style={{ fontSize: "0.68rem", background: "rgba(201,151,58,0.12)", color: "var(--ochre)", borderRadius: 20, padding: "1px 8px" }}>
+                        Servicio: {svcName(c.preferredServiceId) || `#${c.preferredServiceId}`}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Portal ────────────────────────────────────────────────────────────────────
 
 function EmployeePortal({ slug, empInfo, onLogout }) {
-  const [tab, setTab] = useState("agenda"); // "agenda" | "equipo"
+  const [tab, setTab] = useState("agenda"); // "agenda" | "equipo" | "clientes"
   const [alert, setAlert] = useState(null);
   const [showNewBooking, setShowNewBooking] = useState(false);
   const [detailBookingId, setDetailBookingId] = useState(null);
@@ -884,6 +952,7 @@ function EmployeePortal({ slug, empInfo, onLogout }) {
         <div className="emp-tab-bar">
           <button className={`emp-tab${tab === "agenda" ? " active" : ""}`} onClick={() => setTab("agenda")}>Mi agenda</button>
           <button className={`emp-tab${tab === "equipo" ? " active" : ""}`} onClick={() => setTab("equipo")}>Equipo</button>
+          <button className={`emp-tab${tab === "clientes" ? " active" : ""}`} onClick={() => setTab("clientes")}>Clientes</button>
         </div>
         <span className="emp-header-name">{empInfo.name}</span>
         <button className="emp-header-btn primary" onClick={() => setShowNewBooking(true)}>+ Nueva cita</button>
@@ -908,6 +977,7 @@ function EmployeePortal({ slug, empInfo, onLogout }) {
           showAlert={showAlert}
         />
       )}
+      {tab === "clientes" && <ClientesTab />}
 
       {/* Modals */}
       {showNewBooking && (

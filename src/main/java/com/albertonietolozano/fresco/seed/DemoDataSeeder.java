@@ -74,8 +74,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                     "Laura Sanz",   "3333"
             );
             employeeRepository.findAllByTenantId(tenantId).forEach(emp -> {
-                if (emp.getPin() == null && empPins.containsKey(emp.getName())) {
-                    emp.setPin(empPins.get(emp.getName()));
+                if (emp.getPinHash() == null && empPins.containsKey(emp.getName())) {
                     emp.setPinHash(passwordEncoder.encode(empPins.get(emp.getName())));
                     employeeRepository.save(emp);
                 }
@@ -159,7 +158,6 @@ public class DemoDataSeeder implements ApplicationRunner {
                 .email("maria@fisiovital.es")
                 .phone("611 111 111")
                 .active(true)
-                .pin("1111")
                 .pinHash(passwordEncoder.encode("1111"))
                 .serviceIds(new ArrayList<>())
                 .build());
@@ -170,7 +168,6 @@ public class DemoDataSeeder implements ApplicationRunner {
                 .email("carlos@fisiovital.es")
                 .phone("622 222 222")
                 .active(true)
-                .pin("2222")
                 .pinHash(passwordEncoder.encode("2222"))
                 .serviceIds(new ArrayList<>(List.of(sesion.getId(), rehab.getId(), valoracion.getId())))
                 .build());
@@ -181,7 +178,6 @@ public class DemoDataSeeder implements ApplicationRunner {
                 .email("laura@fisiovital.es")
                 .phone("633 333 333")
                 .active(true)
-                .pin("3333")
                 .pinHash(passwordEncoder.encode("3333"))
                 .serviceIds(new ArrayList<>(List.of(masaje.getId(), electro.getId(), valoracion.getId())))
                 .build());
