@@ -276,7 +276,7 @@ Availability takes closed dates and global venue capacity into account. If the b
 docker run --name fresco-db \
   -e POSTGRES_DB=fresco \
   -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=1234 \
+  -e POSTGRES_PASSWORD=your_password \
   -p 5433:5432 \
   -d postgres:16
 ```
@@ -286,6 +286,16 @@ Or use the included Compose file, which also starts the app:
 ```bash
 docker compose up
 ```
+
+### Environment variables
+
+Copy `.env.example` to `.env` and fill in the real values before starting the application:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set every variable (database credentials, JWT secret, mail account, etc.) before running the backend.
 
 ### Backend
 

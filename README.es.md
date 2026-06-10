@@ -276,7 +276,7 @@ La disponibilidad tiene en cuenta las fechas de cierre y el aforo maximo del loc
 docker run --name fresco-db \
   -e POSTGRES_DB=fresco \
   -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=1234 \
+  -e POSTGRES_PASSWORD=your_password \
   -p 5433:5432 \
   -d postgres:16
 ```
@@ -286,6 +286,16 @@ O usar el fichero Compose incluido, que tambien arranca la aplicacion:
 ```bash
 docker compose up
 ```
+
+### Variables de entorno
+
+Copia `.env.example` a `.env` y rellena los valores reales antes de arrancar la aplicacion:
+
+```bash
+cp .env.example .env
+```
+
+Abre `.env` y configura todas las variables (credenciales de base de datos, JWT secret, cuenta de correo, etc.) antes de ejecutar el backend.
 
 ### Backend
 

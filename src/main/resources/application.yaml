@@ -25,11 +25,6 @@ spring:
       hibernate:
         format_sql: false
 
-  web:
-    error:
-      include-message: always
-      include-exception: true
-
   mail:
     host: smtp.gmail.com
     port: 587
@@ -43,7 +38,7 @@ spring:
             enable: true
 
 jwt:
-  secret: ${JWT_SECRET:fresco-secret-key-multitenant-booking-platform-2026}
+  secret: ${JWT_SECRET}
   expiration: 86400000
 
 ---
@@ -56,3 +51,13 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  web:
+    error:
+      include-message: always
+      include-exception: true
