@@ -201,7 +201,7 @@ public class PublicController {
                 .filter(d -> d.getTenantId().equals(tenantId))
                 .orElseThrow(() -> new RuntimeException("Document not found"));
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.getFileName() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.getFileName().replaceAll("[^\\w.\\-]", "_") + "\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(doc.getContent());
     }
