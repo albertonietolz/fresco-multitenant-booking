@@ -22,5 +22,6 @@ public record BookingResponse(
         LocalDateTime createdAt,
         String notes,
         List<BookingFieldValueResponse> fieldValues,
-        String referenceCode
+        String referenceCode,
+        Integer partySize
 ) {}

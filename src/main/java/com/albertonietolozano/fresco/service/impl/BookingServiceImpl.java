@@ -77,10 +77,28 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public AvailabilityResponse getAvailableSlots(Long employeeId, Long serviceId, LocalDate date) {
+    public AvailabilityResponse getAvailableSlots(Long employeeId, Long serviceId, LocalDate date, int partySize) {
         Service service = serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new RuntimeException("Service not found"));
         int duration = service.getDuration();
+
+        // Restricción de días/fechas del servicio.
+        String schedMode = service.getSchedulingMode();
+        if (schedMode != null && !"ANY".equals(schedMode)) {
+            boolean dateAllowed;
+            if ("WEEKDAYS".equals(schedMode)) {
+                String allowed = service.getAllowedWeekdays();
+                dateAllowed = allowed != null && java.util.Arrays.stream(allowed.split(","))
+                        .anyMatch(d -> d.trim().equalsIgnoreCase(date.getDayOfWeek().name()));
+            } else if ("SPECIFIC".equals(schedMode)) {
+                String specific = service.getSpecificDates();
+                dateAllowed = specific != null && java.util.Arrays.stream(specific.split(","))
+                        .anyMatch(d -> d.trim().equals(date.toString()));
+            } else {
+                dateAllowed = true;
+            }
+            if (!dateAllowed) return new AvailabilityResponse(List.of());
+        }
 
         Long resolvedTenantId = TenantContext.getTenantId() != null ? TenantContext.getTenantId() : service.getTenantId();
 
@@ -123,14 +141,14 @@ public class BookingServiceImpl implements BookingService {
             return new AvailabilityResponse(List.of());
         }
 
-        // capacity = null → individual; capacity = 0 → unlimited group; capacity > 0 → limited group.
+        // capacity = null → cita individual; capacity = 0 → grupo ilimitado; capacity > 0 → grupo con límite.
         boolean isGroupService = service.getCapacity() != null && service.getCapacity() >= 0;
 
-        // For group services without a specified employee, count all bookings for this service.
-        // For individual services without a specified employee, we need per-eligible-employee bookings
-        // to determine if at least one employee is free (computed lazily below).
+        // Para servicios grupales sin empleado concreto: contar todas las reservas del servicio.
+        // Para servicios individuales sin empleado concreto: necesitamos las reservas por empleado elegible
+        // para determinar si al menos uno está libre (calculado de forma diferida más abajo).
         List<Booking> existingBookings;
-        Map<Long, List<Booking>> bookingsByEligibleEmployee = null; // used only for individual+no-employee
+        Map<Long, List<Booking>> bookingsByEligibleEmployee = null; // solo para servicios individuales sin empleado especificado
         Set<Long> eligibleEmployeeIds = null;
 
         if (employeeId == null) {
@@ -140,8 +158,8 @@ public class BookingServiceImpl implements BookingService {
                         : bookingRepository.findAllByEmployeeIdIsNullAndServiceIdAndDate(service.getId(), date))
                         .stream().filter(b -> b.getStatus() != BookingStatus.CANCELLED).toList();
             } else {
-                // Individual + no employee: slot is available when at least one eligible employee is free.
-                // Preload bookings per eligible employee to avoid repeated DB calls in the slot loop.
+                // Individual sin empleado: el hueco está disponible si al menos un empleado elegible está libre.
+                // Precargamos las reservas por empleado elegible para evitar consultas repetidas en el bucle de slots.
                 eligibleEmployeeIds = employeeRepository.findAllByTenantIdAndActiveTrue(resolvedTenantId).stream()
                         .filter(e -> e.getServiceIds() == null || e.getServiceIds().isEmpty() || e.getServiceIds().contains(serviceId))
                         .filter(e -> !empBlockedDateRepository.existsByTenantIdAndEmployeeIdAndDate(resolvedTenantId, e.getId(), date))
@@ -153,7 +171,7 @@ public class BookingServiceImpl implements BookingService {
                             bookingRepository.findAllByEmployeeIdAndDate(eid, date).stream()
                                     .filter(b -> b.getStatus() != BookingStatus.CANCELLED).toList());
                 }
-                // existingBookings = union of all eligible employees' bookings (used for serviceBlockingMinutes)
+                // existingBookings = unión de las reservas de todos los empleados elegibles (usada para serviceBlockingMinutes)
                 existingBookings = bookingsByEligibleEmployee.values().stream()
                         .flatMap(java.util.Collection::stream).toList();
             }
@@ -213,12 +231,13 @@ public class BookingServiceImpl implements BookingService {
                     // Sin límite de plazas: siempre disponible dentro del horario.
                     slotOk = true;
                 } else if (isLimitedGroup) {
-                    long bookingsAtSlot = existingBookings.stream()
+                    int occupiedSpots = existingBookings.stream()
                             .filter(b -> b.getServiceId().equals(serviceId) && b.getStartTime().equals(slotStart))
-                            .count();
-                    slotOk = bookingsAtSlot < service.getCapacity();
+                            .mapToInt(b -> b.getPartySize() != null ? b.getPartySize() : 1)
+                            .sum();
+                    slotOk = occupiedSpots + partySize <= service.getCapacity();
                 } else if (bookingsByEligibleEmployee != null) {
-                    // Individual service, no employee specified: slot is ok if at least one eligible employee is free.
+                    // Servicio individual sin empleado: el hueco es válido si al menos un empleado elegible está libre.
                     final LocalTime fSlotStart = slotStart;
                     final LocalTime fSlotEnd = slotEnd;
                     boolean anyFree = bookingsByEligibleEmployee.entrySet().stream().anyMatch(entry -> {
@@ -240,15 +259,15 @@ public class BookingServiceImpl implements BookingService {
 
                 // Comprobación de aforo global del local.
                 if (slotOk && hasGlobalCap) {
-                    long concurrent = allTenantBookings.stream().filter(b -> {
+                    int concurrent = allTenantBookings.stream().filter(b -> {
                         int bDur = serviceDurationMap.computeIfAbsent(b.getServiceId(),
                                 id -> serviceRepository.findById(id).map(Service::getDuration).orElse(60));
                         LocalTime bStart = b.getStartTime();
                         if (bStart == null) return false;
                         LocalTime bEnd = bStart.plusMinutes(bDur);
                         return slotStart.isBefore(bEnd) && bStart.isBefore(slotEnd);
-                    }).count();
-                    slotOk = concurrent < globalCap;
+                    }).mapToInt(b -> b.getPartySize() != null ? b.getPartySize() : 1).sum();
+                    slotOk = concurrent + partySize <= globalCap;
                 }
 
                 if (slotOk) slots.add(slotStart);
@@ -281,10 +300,12 @@ public class BookingServiceImpl implements BookingService {
         Service requestedService = serviceRepository.findById(request.serviceId())
                 .orElseThrow(() -> new RuntimeException("Service not found"));
 
-        // Validate with the same employeeId the user browsed (null = business hours).
-        // Resolve to defaultEmployeeId only for storage, not for slot validation.
+        int requestedPartySize = (request.partySize() != null && request.partySize() > 0) ? request.partySize() : 1;
+
+        // Validar con el mismo employeeId con el que el cliente navegó (null = horario del negocio).
+        // Resolver al empleado por defecto solo para el almacenamiento, no para validar el slot.
         AvailabilityResponse availability = getAvailableSlots(
-                request.employeeId(), request.serviceId(), request.date()
+                request.employeeId(), request.serviceId(), request.date(), requestedPartySize
         );
 
         boolean slotAvailable = availability.slots().contains(request.startTime());
@@ -323,7 +344,7 @@ public class BookingServiceImpl implements BookingService {
                     }
                 }
             }
-            // 3. Fall back to least-busy active employee that can perform the service (excluding blocked)
+            // 3. Si no hay candidato: asignar al empleado activo con menos reservas ese día que pueda hacer el servicio (excluyendo bloqueados)
             if (resolvedEmployeeId == null) {
                 List<Booking> dayBookings = bookingRepository.findAllByTenantIdAndDate(tenantId, request.date());
                 Map<Long, Long> bookingCountByEmployee = dayBookings.stream()
@@ -358,6 +379,7 @@ public class BookingServiceImpl implements BookingService {
                 .notes(request.notes())
                 .referenceCode(refCode)
                 .cancelToken(cancelToken)
+                .partySize(requestedPartySize)
                 .build();
 
         final Booking saved = bookingRepository.save(booking);
@@ -480,7 +502,8 @@ public class BookingServiceImpl implements BookingService {
                 booking.getCreatedAt(),
                 booking.getNotes(),
                 fieldValues,
-                booking.getReferenceCode()
+                booking.getReferenceCode(),
+                booking.getPartySize() != null ? booking.getPartySize() : 1
         );
     }
 }

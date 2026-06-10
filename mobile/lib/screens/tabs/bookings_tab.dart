@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../app_theme.dart';
 import '../../models/models.dart';
@@ -17,11 +18,19 @@ class _BookingsTabState extends State<BookingsTab> {
   String _filter = 'ALL';
   bool _loading = true;
   String _search = '';
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -353,6 +362,15 @@ class _BookingsTabState extends State<BookingsTab> {
                   ]),
                 ),
               ),
+            ),
+          if (b.partySize > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(children: [
+                const Icon(Icons.people_outline, size: 15, color: AppTheme.ochre),
+                const SizedBox(width: 8),
+                Text('${b.partySize} personas', style: const TextStyle(fontSize: 13, color: AppTheme.ochre, fontWeight: FontWeight.w600)),
+              ]),
             ),
           if (b.customerEmail != null)
             _row(Icons.email_outlined, b.customerEmail!),

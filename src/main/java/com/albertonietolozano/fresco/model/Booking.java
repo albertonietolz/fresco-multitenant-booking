@@ -57,4 +57,8 @@ public class Booking {
 
     @Column(unique = true)
     private String cancelToken;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "INTEGER DEFAULT 1")
+    private Integer partySize = 1;
 }

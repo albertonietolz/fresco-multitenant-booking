@@ -56,8 +56,9 @@ public class BookingController {
     public ResponseEntity<AvailabilityResponse> getAvailability(
             @RequestParam(required = false) Long employeeId,
             @RequestParam Long serviceId,
-            @RequestParam LocalDate date) {
-        return ResponseEntity.ok(bookingService.getAvailableSlots(employeeId, serviceId, date));
+            @RequestParam LocalDate date,
+            @RequestParam(defaultValue = "1") int partySize) {
+        return ResponseEntity.ok(bookingService.getAvailableSlots(employeeId, serviceId, date, partySize));
     }
 
     @GetMapping("/{id}/on-duty")

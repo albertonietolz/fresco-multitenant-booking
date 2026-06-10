@@ -876,6 +876,7 @@ export default function BookingPage() {
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth() + 1);
   const [availDates, setAvailDates] = useState(null); // null = loading, Set = loaded
   const [calLoading, setCalLoading] = useState(false);
+  const [partySize, setPartySize] = useState(1);
   const [form, setForm] = useState({
     customerName: "", customerEmail: "", customerPhone: "", notes: "",
   });
@@ -941,25 +942,28 @@ export default function BookingPage() {
     setSlotsLoading(true);
     setSlots([]);
     const empParam = employee.id != null ? `&employeeId=${employee.id}` : '';
-    pub(`/${slug}/booking/availability?serviceId=${service.id}${empParam}&date=${date}`)
+    const partySizeParam = service.allowPartySize && partySize > 1 ? `&partySize=${partySize}` : '';
+    pub(`/${slug}/booking/availability?serviceId=${service.id}${empParam}&date=${date}${partySizeParam}`)
       .then((d) => setSlots(d.slots || []))
       .catch(() => setSlots([]))
       .finally(() => setSlotsLoading(false));
-  }, [date, service, employee]);
+  }, [date, service, employee, partySize]);
 
   useEffect(() => {
     if (!service || !employee) return;
     setAvailDates(null);
     setCalLoading(true);
     const empParamM = employee.id != null ? `&employeeId=${employee.id}` : '';
-    pub(`/${slug}/booking/availability/month?serviceId=${service.id}${empParamM}&year=${calYear}&month=${calMonth}`)
+    const partySizeParamM = service.allowPartySize && partySize > 1 ? `&partySize=${partySize}` : '';
+    pub(`/${slug}/booking/availability/month?serviceId=${service.id}${empParamM}&year=${calYear}&month=${calMonth}${partySizeParamM}`)
       .then((dates) => setAvailDates(new Set(dates)))
       .catch(() => setAvailDates(new Set()))
       .finally(() => setCalLoading(false));
-  }, [service, employee, calYear, calMonth]);
+  }, [service, employee, calYear, calMonth, partySize]);
 
   const selectService = (svc) => {
     setService(svc);
+    setPartySize(1);
     setEmployee(null); setSlot(null); setDate(""); setSlots([]);
     setAvailDates(null);
     const now = new Date();
@@ -983,6 +987,7 @@ export default function BookingPage() {
         customerPhone: form.customerPhone || null,
         notes: form.notes || null,
         fieldValues: fieldValues.filter((fv) => fv.value),
+        partySize: service.allowPartySize ? partySize : 1,
       });
       setBooked(result);
       setStep(5);
@@ -1158,6 +1163,9 @@ export default function BookingPage() {
               }}
               availDates={availDates}
               calLoading={calLoading}
+              service={service}
+              partySize={partySize}
+              onPartySize={setPartySize}
             />
           )}
           {step === 4 && (
@@ -1166,6 +1174,7 @@ export default function BookingPage() {
               employee={employee}
               date={date}
               slot={slot}
+              partySize={partySize}
               form={form}
               setForm={setForm}
               fieldValues={fieldValues}
@@ -1298,6 +1307,7 @@ function StepDateTime({
   date, onDateChange, slots, slotsLoading, onSlot, onBack,
   calYear, calMonth, onPrevMonth, onNextMonth,
   availDates, calLoading,
+  service, partySize, onPartySize,
 }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const nowYear = new Date().getFullYear();
@@ -1319,6 +1329,20 @@ function StepDateTime({
       <button className="bk-btn-back" onClick={onBack}>← Volver</button>
       <div className="bk-step-title">Elige fecha y hora</div>
       <div className="bk-step-sub">Los días en verde tienen disponibilidad. Selecciona uno para ver las horas.</div>
+
+      {service.allowPartySize && service.capacity > 0 && (
+        <div style={{ background: "var(--white)", border: "1px solid var(--stone-border)", borderRadius: 10, padding: "16px 20px", marginBottom: 16 }}>
+          <div style={{ fontSize: "0.78rem", fontWeight: 500, color: "var(--ink-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>¿Cuántas personas?</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <button type="button" onClick={() => onPartySize((p) => Math.max(1, p - 1))}
+              style={{ width: 38, height: 38, borderRadius: 9, border: "1.5px solid var(--stone-border)", background: "var(--stone)", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--blue)" }}>−</button>
+            <span style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--blue)", minWidth: 28, textAlign: "center" }}>{partySize}</span>
+            <button type="button" onClick={() => onPartySize((p) => Math.min(service.capacity, p + 1))}
+              style={{ width: 38, height: 38, borderRadius: 9, border: "1.5px solid var(--stone-border)", background: "var(--stone)", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--blue)" }}>+</button>
+            <span style={{ fontSize: "0.8rem", color: "var(--ink-muted)" }}>máx. {service.capacity} plazas</span>
+          </div>
+        </div>
+      )}
 
       <div className="bk-cal">
         <div className="bk-cal-header">
@@ -1400,7 +1424,7 @@ function StepDateTime({
 }
 
 function StepDetails({
-  service, employee, date, slot,
+  service, employee, date, slot, partySize,
   form, setForm, fieldValues, setFieldValues, serviceFields,
   tenant, error, submitting, onBack, onSubmit,
 }) {
@@ -1422,6 +1446,9 @@ function StepDetails({
         <div className="bk-summary-title">Resumen de tu reserva</div>
         <div className="bk-summary-row"><span className="bk-summary-icon">✂</span>{service.name} · {service.duration} min</div>
         <div className="bk-summary-row"><span className="bk-summary-icon">📅</span>{fmtDate(date)} a las {fmtSlot(slot)}</div>
+        {service.allowPartySize && partySize > 1 && (
+          <div className="bk-summary-row"><span className="bk-summary-icon">👥</span>{partySize} personas</div>
+        )}
         {service.price != null && (
           <div className="bk-summary-row"><span className="bk-summary-icon">💶</span>Precio: <strong style={{ marginLeft: "4px", color: "#fff" }}>{Number(service.price).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</strong></div>
         )}

@@ -125,12 +125,13 @@ public class PublicController {
             @PathVariable String slug,
             @RequestParam(required = false) Long employeeId,
             @RequestParam Long serviceId,
-            @RequestParam LocalDate date
+            @RequestParam LocalDate date,
+            @RequestParam(defaultValue = "1") int partySize
     ) {
         Long tenantId = resolveTenantId(slug);
         TenantContext.setTenantId(tenantId);
         try {
-            return ResponseEntity.ok(bookingService.getAvailableSlots(employeeId, serviceId, date));
+            return ResponseEntity.ok(bookingService.getAvailableSlots(employeeId, serviceId, date, partySize));
         } finally {
             TenantContext.clear();
         }

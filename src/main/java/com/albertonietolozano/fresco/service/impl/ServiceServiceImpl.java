@@ -59,6 +59,10 @@ public class ServiceServiceImpl implements ServiceService {
                 .chairTime(request.chairTime())
                 .price(request.price())
                 .defaultEmployeeId(request.defaultEmployeeId())
+                .allowPartySize(Boolean.TRUE.equals(request.allowPartySize()))
+                .schedulingMode(request.schedulingMode() != null ? request.schedulingMode() : "ANY")
+                .allowedWeekdays(request.allowedWeekdays())
+                .specificDates(request.specificDates())
                 .active(true)
                 .build();
 
@@ -77,6 +81,10 @@ public class ServiceServiceImpl implements ServiceService {
         service.setChairTime(request.chairTime());
         service.setPrice(request.price());
         service.setDefaultEmployeeId(request.defaultEmployeeId());
+        service.setAllowPartySize(Boolean.TRUE.equals(request.allowPartySize()));
+        service.setSchedulingMode(request.schedulingMode() != null ? request.schedulingMode() : "ANY");
+        service.setAllowedWeekdays(request.allowedWeekdays());
+        service.setSpecificDates(request.specificDates());
 
         return toResponse(serviceRepository.save(service));
     }
@@ -108,6 +116,6 @@ public class ServiceServiceImpl implements ServiceService {
                         customFieldOptionRepository.findAllByCustomFieldIdOrderBySortOrderAsc(f.getId()).stream().map(o -> o.getLabel()).collect(java.util.stream.Collectors.toList())))
                 .toList();
 
-        return new ServiceResponse(service.getId(), service.getName(), service.getDuration(), service.getCapacity(), service.getChairTime(), service.getPrice(), service.getActive(), fields, service.getDefaultEmployeeId());
+        return new ServiceResponse(service.getId(), service.getName(), service.getDuration(), service.getCapacity(), service.getChairTime(), service.getPrice(), service.getActive(), fields, service.getDefaultEmployeeId(), Boolean.TRUE.equals(service.getAllowPartySize()), service.getSchedulingMode() != null ? service.getSchedulingMode() : "ANY", service.getAllowedWeekdays(), service.getSpecificDates());
     }
 }

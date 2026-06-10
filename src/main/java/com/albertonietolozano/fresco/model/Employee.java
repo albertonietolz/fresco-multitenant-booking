@@ -35,7 +35,10 @@ public class Employee {
     @Column(nullable = false)
     private Boolean active;
 
-    // BCrypt del PIN de 4-6 dígitos que el dueño asigna para el acceso al portal de empleados.
+    // PIN en texto plano asignado por el dueño (visible en el dashboard para comunicárselo al empleado).
+    private String pin;
+
+    // BCrypt del PIN (para la autenticación en el portal de empleados).
     private String pinHash;
 
     // Vacío = atiende todos los servicios; con IDs = solo esos servicios.

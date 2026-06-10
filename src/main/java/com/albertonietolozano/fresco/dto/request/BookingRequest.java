@@ -14,5 +14,6 @@ public record BookingRequest(
         LocalDate date,
         LocalTime startTime,
         String notes,
-        List<BookingFieldValueRequest> fieldValues
+        List<BookingFieldValueRequest> fieldValues,
+        Integer partySize
 ) {}

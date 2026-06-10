@@ -11,5 +11,5 @@ public record EmployeeResponse(
         Long userId,
         Boolean active,
         List<Long> serviceIds,
-        Boolean hasPinSet
+        String pin
 ) {}

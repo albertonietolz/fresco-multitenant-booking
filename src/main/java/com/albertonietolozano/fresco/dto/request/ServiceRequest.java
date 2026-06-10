@@ -8,5 +8,9 @@ public record ServiceRequest(
         Integer capacity,
         Integer chairTime,
         BigDecimal price,
-        Long defaultEmployeeId
+        Long defaultEmployeeId,
+        Boolean allowPartySize,
+        String schedulingMode,
+        String allowedWeekdays,
+        String specificDates
 ) {}

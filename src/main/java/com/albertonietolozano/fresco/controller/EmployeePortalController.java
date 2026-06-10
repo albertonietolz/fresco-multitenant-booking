@@ -349,6 +349,7 @@ public class EmployeePortalController {
             m.put("clientName", b.getCustomerName());
             m.put("serviceName", svc != null ? svc.getName() : "Servicio");
             m.put("status", b.getStatus().name());
+            m.put("partySize", b.getPartySize() != null ? b.getPartySize() : 1);
             bookingList.add(m);
         }
 
@@ -402,10 +403,11 @@ public class EmployeePortalController {
     @GetMapping("/emp/availability")
     public ResponseEntity<List<String>> getAvailability(
             @RequestParam Long serviceId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "1") int partySize
     ) {
         Long myId = empId();
-        var response = bookingService.getAvailableSlots(myId, serviceId, date);
+        var response = bookingService.getAvailableSlots(myId, serviceId, date, partySize);
         List<String> slots = response.slots().stream()
                 .map(t -> t.toString().substring(0, 5))
                 .toList();
@@ -429,13 +431,14 @@ public class EmployeePortalController {
 
         // Si viene employeeId explícito se respeta; si no, se deja null para auto-asignación.
         Long employeeId = body.get("employeeId") instanceof Number n ? n.longValue() : null;
+        Integer partySize = body.get("partySize") instanceof Number n ? n.intValue() : 1;
 
         LocalDate date = LocalDate.parse(dateStr);
         LocalTime startTime = LocalTime.parse(timeStr.length() == 5 ? timeStr + ":00" : timeStr);
 
         BookingRequest request = new BookingRequest(
                 employeeId, serviceId, customerName, customerEmail, customerPhone,
-                date, startTime, notes, List.of()
+                date, startTime, notes, List.of(), partySize
         );
 
         BookingResponse created = bookingService.createBooking(request, tenantId);
@@ -493,6 +496,7 @@ public class EmployeePortalController {
         result.put("fields", fields);
         result.put("previousVisits", historyCount);
         result.put("createdAt", booking.getCreatedAt() != null ? booking.getCreatedAt().toString() : null);
+        result.put("partySize", booking.getPartySize() != null ? booking.getPartySize() : 1);
 
         return ResponseEntity.ok(result);
     }

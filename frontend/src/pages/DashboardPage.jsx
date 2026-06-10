@@ -3179,6 +3179,10 @@ function Services() {
   const [serviceMode, setServiceMode] = useState("sequential");
   const [sinLimite, setSinLimite] = useState(false);
   const [showPrice, setShowPrice] = useState(false);
+  const [allowPartySize, setAllowPartySize] = useState(false);
+  const [schedMode, setSchedMode] = useState("ANY"); // "ANY" | "WEEKDAYS" | "SPECIFIC"
+  const [schedWeekdays, setSchedWeekdays] = useState(new Set());
+  const [schedDates, setSchedDates] = useState(""); // comma-separated date strings
   const [createdService, setCreatedService] = useState(null);
   const [serviceFields, setServiceFields] = useState([]);
   const [fieldForm, setFieldForm] = useState({
@@ -3214,6 +3218,10 @@ function Services() {
     setServiceMode("sequential");
     setSinLimite(false);
     setShowPrice(false);
+    setAllowPartySize(false);
+    setSchedMode("ANY");
+    setSchedWeekdays(new Set());
+    setSchedDates("");
     setCreatedService(null);
     setServiceFields([]);
     setFieldForm({ label: "", fieldType: "TEXT", required: false });
@@ -3228,6 +3236,10 @@ function Services() {
     setServiceMode(hasCapacity ? "capacity" : svc.chairTime ? "split" : "sequential");
     setSinLimite(hasCapacity && svc.capacity === 0);
     setShowPrice(svc.price != null);
+    setAllowPartySize(!!svc.allowPartySize);
+    setSchedMode(svc.schedulingMode || "ANY");
+    setSchedWeekdays(svc.allowedWeekdays ? new Set(svc.allowedWeekdays.split(",").map((d) => d.trim())) : new Set());
+    setSchedDates(svc.specificDates || "");
     setCreatedService(null);
     setServiceFields([]);
     setFieldForm({ label: "", fieldType: "TEXT", required: false });
@@ -3252,6 +3264,10 @@ function Services() {
         chairTime: serviceMode === "split" && form.chairTime ? Number(form.chairTime) : null,
         price: showPrice && form.price ? Number(form.price) : null,
         defaultEmployeeId: form.defaultEmployeeId ? Number(form.defaultEmployeeId) : null,
+        allowPartySize: serviceMode === "capacity" && !sinLimite ? allowPartySize : false,
+        schedulingMode: schedMode,
+        allowedWeekdays: schedMode === "WEEKDAYS" ? [...schedWeekdays].join(",") : null,
+        specificDates: schedMode === "SPECIFIC" ? schedDates.trim() || null : null,
       };
       const svc = editingService
         ? await api(`/api/services/${editingService.id}`, {
@@ -3461,6 +3477,17 @@ function Services() {
                           required
                         />
                       )}
+                      {!sinLimite && (
+                        <label style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", textTransform: "none", letterSpacing: 0, fontSize: "0.78rem", color: "var(--ink)", fontWeight: 400 }}>
+                          <input
+                            type="checkbox"
+                            checked={allowPartySize}
+                            onChange={(e) => setAllowPartySize(e.target.checked)}
+                            style={{ width: "auto", accentColor: "var(--blue)" }}
+                          />
+                          Contar plazas por número de personas (grupos)
+                        </label>
+                      )}
                     </div>
                   )}
 
@@ -3525,6 +3552,57 @@ function Services() {
                       </p>
                     </div>
                   )}
+
+                  {/* ── Restricción de días/fechas ── */}
+                  <div className="form-field">
+                    <label style={{ fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-muted)", marginBottom: "8px", display: "block" }}>
+                      Disponibilidad del servicio
+                    </label>
+                    <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
+                      {[
+                        { id: "ANY", label: "Cualquier día", desc: "Sin restricción de fecha" },
+                        { id: "WEEKDAYS", label: "Días de la semana", desc: "Solo ciertos días" },
+                        { id: "SPECIFIC", label: "Fechas exactas", desc: "Solo fechas concretas" },
+                      ].map((opt) => {
+                        const sel = schedMode === opt.id;
+                        return (
+                          <button key={opt.id} type="button" onClick={() => setSchedMode(opt.id)}
+                            style={{ flex: 1, padding: "8px 6px", borderRadius: "8px", border: `1.5px solid ${sel ? "var(--blue)" : "var(--stone-border)"}`, background: sel ? "rgba(26,48,112,0.07)" : "transparent", color: sel ? "var(--blue)" : "var(--ink-muted)", fontSize: "0.75rem", fontWeight: sel ? 600 : 400, cursor: "pointer", fontFamily: "inherit", textAlign: "center", lineHeight: 1.3 }}>
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {schedMode === "WEEKDAYS" && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
+                        {[
+                          { id: "MONDAY", label: "Lun" }, { id: "TUESDAY", label: "Mar" }, { id: "WEDNESDAY", label: "Mié" },
+                          { id: "THURSDAY", label: "Jue" }, { id: "FRIDAY", label: "Vie" }, { id: "SATURDAY", label: "Sáb" }, { id: "SUNDAY", label: "Dom" },
+                        ].map(({ id, label }) => {
+                          const checked = schedWeekdays.has(id);
+                          return (
+                            <button key={id} type="button"
+                              onClick={() => setSchedWeekdays((prev) => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; })}
+                              style={{ padding: "4px 10px", borderRadius: "20px", border: `1px solid ${checked ? "var(--blue)" : "var(--stone-border)"}`, background: checked ? "var(--blue)" : "transparent", color: checked ? "#fff" : "var(--ink)", fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit" }}>
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {schedMode === "SPECIFIC" && (
+                      <div style={{ marginTop: "8px" }}>
+                        <input
+                          type="text"
+                          placeholder="2026-06-01, 2026-12-25, ..."
+                          value={schedDates}
+                          onChange={(e) => setSchedDates(e.target.value)}
+                          style={{ width: "100%" }}
+                        />
+                        <p style={{ fontSize: "0.72rem", color: "var(--ink-muted)", marginTop: "4px" }}>Introduce las fechas separadas por comas en formato AAAA-MM-DD.</p>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="modal-actions">
                     <button
@@ -3810,6 +3888,13 @@ function Employees() {
   useEffect(() => {
     load();
     api("/api/services").then(setAllServices).catch(() => {});
+    const interval = setInterval(load, 30000);
+    const onVisibility = () => { if (!document.hidden) load(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   const openCreate = () => {
@@ -4397,9 +4482,11 @@ function Planning() {
   const [employees, setEmployees] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [showPast, setShowPast] = useState(false);
   const [modal, setModal] = useState(false);
   const [bStep, setBStep] = useState(1);
   const [bForm, setBForm] = useState({ serviceId: "", employeeId: "", date: "", startTime: "", customerName: "", customerEmail: "", customerPhone: "", notes: "" });
+  const [bPartySize, setBPartySize] = useState(1);
   const [slots, setSlots] = useState([]);
   const [msg, setMsg] = useState(null);
   const [onDutyBooking, setOnDutyBooking] = useState(null);
@@ -4422,6 +4509,13 @@ function Planning() {
     load();
     api("/api/services").then(setServices).catch(() => {});
     api("/api/employees").then(setEmployees).catch(() => {});
+    const interval = setInterval(load, 30000);
+    const onVisibility = () => { if (!document.hidden) load(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -4459,8 +4553,14 @@ function Planning() {
 
   const filtered = items
     .filter((b) => !selectedDate || b.date === selectedDate)
+    .filter((b) => selectedDate || (showPast ? b.date < today : b.date >= today))
     .filter((b) => statusFilter === "ALL" || b.status === statusFilter)
-    .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime||"").localeCompare(b.startTime||""));
+    .sort((a, b) => {
+      const dateCmp = (showPast && !selectedDate)
+        ? b.date.localeCompare(a.date)
+        : a.date.localeCompare(b.date);
+      return dateCmp || (a.startTime||"").localeCompare(b.startTime||"");
+    });
 
   const byDay = {};
   filtered.forEach((b) => { if (!byDay[b.date]) byDay[b.date] = []; byDay[b.date].push(b); });
@@ -4492,18 +4592,23 @@ function Planning() {
 
   const openModal = () => {
     setBForm({ serviceId: "", employeeId: "", date: "", startTime: "", customerName: "", customerEmail: "", customerPhone: "", notes: "" });
-    setSlots([]); setBStep(1); setModal(true);
+    setBPartySize(1); setSlots([]); setBStep(1); setModal(true);
   };
 
-  const loadSlots = async (serviceId, employeeId, date) => {
-    try { const d = await api(`/api/bookings/availability?serviceId=${serviceId}&employeeId=${employeeId}&date=${date}`); setSlots(d.slots || []); }
-    catch { setSlots([]); }
+  const loadSlots = async (serviceId, employeeId, date, partySize = 1) => {
+    try {
+      const psParam = partySize > 1 ? `&partySize=${partySize}` : '';
+      const d = await api(`/api/bookings/availability?serviceId=${serviceId}&employeeId=${employeeId}&date=${date}${psParam}`);
+      setSlots(d.slots || []);
+    } catch { setSlots([]); }
   };
 
   const submitBooking = async () => {
     try {
       const startTime = bForm.startTime.length === 5 ? bForm.startTime + ":00" : bForm.startTime;
-      await api("/api/bookings", { method: "POST", body: JSON.stringify({ serviceId: Number(bForm.serviceId), employeeId: Number(bForm.employeeId), date: bForm.date, startTime, customerName: bForm.customerName, customerEmail: bForm.customerEmail || null, customerPhone: bForm.customerPhone || null, notes: bForm.notes || null, fieldValues: [] }) });
+      const selSvc = services.find((s) => s.id === Number(bForm.serviceId));
+      const partySize = selSvc?.allowPartySize ? bPartySize : 1;
+      await api("/api/bookings", { method: "POST", body: JSON.stringify({ serviceId: Number(bForm.serviceId), employeeId: Number(bForm.employeeId), date: bForm.date, startTime, customerName: bForm.customerName, customerEmail: bForm.customerEmail || null, customerPhone: bForm.customerPhone || null, notes: bForm.notes || null, fieldValues: [], partySize }) });
       setModal(false); load(); loadOverview(selectedDate || today); setMsg({ type: "ok", text: "Reserva creada correctamente." });
     } catch { setMsg({ type: "err", text: "Error al crear la reserva." }); }
   };
@@ -4657,7 +4762,7 @@ function Planning() {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Filtros de estado */}
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "14px" }}>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "14px", alignItems: "center" }}>
             {[["ALL","Todas"],["PENDING","Pendientes"],["CONFIRMED","Confirmadas"],["CANCELLED","Canceladas"]].map(([v,l]) => (
               <button key={v} onClick={() => setStatusFilter(v)} style={{
                 padding: "4px 12px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", border: "1.5px solid",
@@ -4666,8 +4771,14 @@ function Planning() {
                 borderColor: statusFilter === v ? "var(--blue)" : "var(--stone-border)",
               }}>{l}</button>
             ))}
+            <button onClick={() => { setShowPast(p => !p); setSelectedDate(null); }} style={{
+              marginLeft: "auto", padding: "4px 12px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", border: "1.5px solid",
+              background: showPast ? "var(--ochre)" : "var(--white)",
+              color: showPast ? "#fff" : "var(--ink-muted)",
+              borderColor: showPast ? "var(--ochre)" : "var(--stone-border)",
+            }}>{showPast ? "← Próximas" : "Pasadas"}</button>
             {selectedDate && (
-              <button className="btn-sm" onClick={() => setSelectedDate(null)} style={{ marginLeft: "auto" }}>
+              <button className="btn-sm" onClick={() => setSelectedDate(null)}>
                 × {selectedDate} — Ver todo
               </button>
             )}
@@ -4727,6 +4838,11 @@ function Planning() {
                         <span className={`status-badge ${b.status === "CONFIRMED" ? "confirmed" : b.status === "CANCELLED" ? "cancelled" : "pending"}`}>
                           {STATUS_ES[b.status]}
                         </span>
+                        {b.partySize > 1 && (
+                          <span style={{ fontSize: "0.7rem", background: "var(--ochre-dim)", color: "var(--ochre)", borderRadius: "20px", padding: "2px 8px", fontWeight: 600 }}>
+                            {b.partySize} personas
+                          </span>
+                        )}
                         <button className="btn-sm" style={{ fontSize: "0.75rem", padding: "4px 10px" }} onClick={() => openEdit(b)}>Editar</button>
                       </div>
                     );
@@ -4754,11 +4870,24 @@ function Planning() {
             </div>
             {bStep === 1 && (<>
               <div className="form-field"><label>Servicio</label>
-                <select value={bForm.serviceId} onChange={(e) => setBForm((p) => ({ ...p, serviceId: e.target.value }))}>
+                <select value={bForm.serviceId} onChange={(e) => { setBForm((p) => ({ ...p, serviceId: e.target.value })); setBPartySize(1); }}>
                   <option value="">— Elige un servicio —</option>
                   {services.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.name} ({s.duration} min)</option>)}
                 </select>
               </div>
+              {(() => { const selSvc = services.find((s) => s.id === Number(bForm.serviceId)); return selSvc?.allowPartySize && selSvc.capacity > 0 ? (
+                <div className="form-field">
+                  <label>Número de personas</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <button type="button" onClick={() => setBPartySize((p) => Math.max(1, p - 1))}
+                      style={{ width: 32, height: 32, borderRadius: 7, border: "1.5px solid var(--stone-border)", background: "var(--stone)", fontSize: 18, cursor: "pointer" }}>−</button>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 700, minWidth: 24, textAlign: "center" }}>{bPartySize}</span>
+                    <button type="button" onClick={() => setBPartySize((p) => Math.min(selSvc.capacity, p + 1))}
+                      style={{ width: 32, height: 32, borderRadius: 7, border: "1.5px solid var(--stone-border)", background: "var(--stone)", fontSize: 18, cursor: "pointer" }}>+</button>
+                    <span style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>máx. {selSvc.capacity} plazas</span>
+                  </div>
+                </div>
+              ) : null; })()}
               <div className="form-field"><label>Profesional</label>
                 <select value={bForm.employeeId} onChange={(e) => setBForm((p) => ({ ...p, employeeId: e.target.value }))}>
                   <option value="">— Elige un profesional —</option>
@@ -4776,7 +4905,7 @@ function Planning() {
               </div>
               <div className="modal-actions">
                 <button className="btn-cancel" onClick={() => setBStep(1)}>← Atrás</button>
-                <button className="btn-primary" onClick={async () => { await loadSlots(bForm.serviceId, bForm.employeeId, bForm.date); setBStep(3); }} disabled={!bForm.date}>Ver disponibilidad →</button>
+                <button className="btn-primary" onClick={async () => { await loadSlots(bForm.serviceId, bForm.employeeId, bForm.date, bPartySize); setBStep(3); }} disabled={!bForm.date}>Ver disponibilidad →</button>
               </div>
             </>)}
             {bStep === 3 && (<>
@@ -5126,12 +5255,15 @@ function _BookingsDeleted_() {
       .catch(() => {});
   useEffect(() => {
     load();
-    api("/api/services")
-      .then(setServices)
-      .catch(() => {});
-    api("/api/employees")
-      .then(setEmployees)
-      .catch(() => {});
+    api("/api/services").then(setServices).catch(() => {});
+    api("/api/employees").then(setEmployees).catch(() => {});
+    const interval = setInterval(load, 30000);
+    const onVisibility = () => { if (!document.hidden) load(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   const filtered = selectedDate

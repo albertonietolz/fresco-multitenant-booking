@@ -314,21 +314,41 @@ class _HoursScreenState extends State<HoursScreen> {
   );
 
   Widget _timeInput(String value, ValueChanged<String> onChanged) {
-    final ctrl = TextEditingController(text: value);
-    return TextField(
-      controller: ctrl,
-      keyboardType: TextInputType.datetime,
-      onChanged: onChanged,
-      style: const TextStyle(fontSize: 14, color: AppTheme.ink),
-      decoration: InputDecoration(
-        hintText: '09:00',
-        hintStyle: const TextStyle(color: AppTheme.inkMuted, fontSize: 13),
-        filled: true,
-        fillColor: AppTheme.stone,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.stoneBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.stoneBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.blue, width: 1.5)),
+    return GestureDetector(
+      onTap: () async {
+        final parts = value.split(':');
+        final hour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 9 : 9;
+        final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+        final picked = await showTimePicker(
+          context: context,
+          initialTime: TimeOfDay(hour: hour, minute: minute),
+          builder: (ctx, child) => MediaQuery(
+            data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+            child: child!,
+          ),
+        );
+        if (picked != null) {
+          onChanged('${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.stone,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: value.isEmpty ? AppTheme.stoneBorder : AppTheme.blue),
+        ),
+        child: Row(children: [
+          Icon(Icons.access_time, size: 16, color: value.isEmpty ? AppTheme.inkMuted : AppTheme.blue),
+          const SizedBox(width: 6),
+          Text(
+            value.isEmpty ? '—:—' : value,
+            style: TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w500,
+              color: value.isEmpty ? AppTheme.inkMuted : AppTheme.ink,
+            ),
+          ),
+        ]),
       ),
     );
   }

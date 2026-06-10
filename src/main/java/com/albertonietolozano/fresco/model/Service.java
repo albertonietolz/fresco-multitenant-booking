@@ -43,4 +43,21 @@ public class Service {
 
     @Column
     private Long defaultEmployeeId;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean allowPartySize = false;
+
+    // "ANY" = cualquier día, "WEEKDAYS" = días concretos de la semana, "SPECIFIC" = fechas exactas.
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "VARCHAR(20) DEFAULT 'ANY'")
+    private String schedulingMode = "ANY";
+
+    // Días de la semana permitidos (CSV): "MONDAY,WEDNESDAY,FRIDAY"
+    @Column(columnDefinition = "TEXT")
+    private String allowedWeekdays;
+
+    // Fechas concretas permitidas (CSV): "2026-06-01,2026-12-25"
+    @Column(columnDefinition = "TEXT")
+    private String specificDates;
 }

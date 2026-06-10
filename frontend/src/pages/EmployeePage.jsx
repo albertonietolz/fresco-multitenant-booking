@@ -309,6 +309,7 @@ function NewBookingModal({ onClose, onCreated }) {
   const [step, setStep] = useState(1);
   const [services, setServices] = useState([]);
   const [selSvc, setSelSvc] = useState(null);
+  const [partySize, setPartySize] = useState(1);
   const [date, setDate] = useState("");
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -319,10 +320,11 @@ function NewBookingModal({ onClose, onCreated }) {
 
   useEffect(() => { empApi("/emp/services").then(setServices).catch(() => {}); }, []);
 
-  const loadSlots = async (svcId, d) => {
+  const loadSlots = async (svcId, d, ps) => {
     if (!svcId || !d) return;
     setSlotsLoading(true); setSlots([]);
-    try { setSlots(await empApi(`/emp/availability?serviceId=${svcId}&date=${d}`)); }
+    const psParam = ps > 1 ? `&partySize=${ps}` : '';
+    try { setSlots(await empApi(`/emp/availability?serviceId=${svcId}&date=${d}${psParam}`)); }
     catch { setSlots([]); }
     finally { setSlotsLoading(false); }
   };
@@ -331,7 +333,7 @@ function NewBookingModal({ onClose, onCreated }) {
     if (!form.customerName.trim()) { setErr("El nombre es obligatorio."); return; }
     setSaving(true); setErr("");
     try {
-      await empApi("/emp/bookings", { method: "POST", body: JSON.stringify({ serviceId: selSvc.id, date, startTime: selSlot, ...form }) });
+      await empApi("/emp/bookings", { method: "POST", body: JSON.stringify({ serviceId: selSvc.id, date, startTime: selSlot, ...form, partySize: selSvc.allowPartySize ? partySize : 1 }) });
       onCreated();
     } catch { setErr("No se pudo crear la reserva."); }
     finally { setSaving(false); }
@@ -380,10 +382,23 @@ function NewBookingModal({ onClose, onCreated }) {
 
         {step === 2 && (
           <>
+            {selSvc.allowPartySize && selSvc.capacity > 0 && (
+              <div className="emp-form-field">
+                <label className="emp-form-label">Número de personas</label>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <button type="button" onClick={() => { const np = Math.max(1, partySize - 1); setPartySize(np); if (date) loadSlots(selSvc.id, date, np); }}
+                    style={{ width: 32, height: 32, borderRadius: 7, border: "1.5px solid var(--stone-border)", background: "var(--stone)", fontSize: 18, cursor: "pointer" }}>−</button>
+                  <span style={{ fontSize: "1.1rem", fontWeight: 700, minWidth: 24, textAlign: "center" }}>{partySize}</span>
+                  <button type="button" onClick={() => { const np = Math.min(selSvc.capacity, partySize + 1); setPartySize(np); if (date) loadSlots(selSvc.id, date, np); }}
+                    style={{ width: 32, height: 32, borderRadius: 7, border: "1.5px solid var(--stone-border)", background: "var(--stone)", fontSize: 18, cursor: "pointer" }}>+</button>
+                  <span style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>máx. {selSvc.capacity}</span>
+                </div>
+              </div>
+            )}
             <div className="emp-form-field">
               <label className="emp-form-label">Fecha</label>
               <input type="date" className="emp-form-input" value={date} min={today}
-                onChange={(e) => { setDate(e.target.value); setSelSlot(""); loadSlots(selSvc.id, e.target.value); }} />
+                onChange={(e) => { setDate(e.target.value); setSelSlot(""); loadSlots(selSvc.id, e.target.value, partySize); }} />
             </div>
             {date && (
               <>
@@ -478,6 +493,12 @@ function BookingDetailModal({ bookingId, onClose, onStatusChanged }) {
             <div className="emp-detail-row"><span className="emp-detail-label">Servicio</span><span className="emp-detail-value">{detail.serviceName}</span></div>
             <div className="emp-detail-row"><span className="emp-detail-label">Fecha</span><span className="emp-detail-value">{fmtDate(detail.date)}</span></div>
             <div className="emp-detail-row"><span className="emp-detail-label">Hora</span><span className="emp-detail-value">{detail.startTime} – {detail.endTime}</span></div>
+            {detail.partySize > 1 && (
+              <div className="emp-detail-row">
+                <span className="emp-detail-label">Personas</span>
+                <span className="emp-detail-value" style={{ fontWeight: 600, color: "var(--ochre)" }}>{detail.partySize} personas</span>
+              </div>
+            )}
 
             <div className="emp-detail-section">Cliente</div>
             {detail.customerPhone && <div className="emp-detail-row"><span className="emp-detail-label">Teléfono</span><span className="emp-detail-value"><a href={`tel:${detail.customerPhone}`} style={{ color: "var(--blue)" }}>{detail.customerPhone}</a></span></div>}
@@ -641,14 +662,24 @@ function MiAgendaTab({ onBookingClick, showAlert }) {
       .catch(() => setWeekData(null));
   }, [weekStart]);
 
-  // Fetch day detail
+  // Fetch day detail (with polling)
   useEffect(() => {
+    const fetchDay = () => {
+      empApi(`/emp/my-bookings?date=${selectedDate}`)
+        .then(setDayBookings)
+        .catch(() => setDayBookings([]))
+        .finally(() => setLoadingDay(false));
+    };
     setLoadingDay(true);
     setDayBookings(null);
-    empApi(`/emp/my-bookings?date=${selectedDate}`)
-      .then(setDayBookings)
-      .catch(() => setDayBookings([]))
-      .finally(() => setLoadingDay(false));
+    fetchDay();
+    const interval = setInterval(fetchDay, 30000);
+    const onVisibility = () => { if (!document.hidden) fetchDay(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [selectedDate]);
 
   const selectDay = (d) => {
@@ -748,7 +779,14 @@ function MiAgendaTab({ onBookingClick, showAlert }) {
                 <div className="emp-booking-divider" />
                 <div className="emp-booking-info">
                   <div className="emp-booking-client">{b.clientName}</div>
-                  <div className="emp-booking-service">{b.serviceName}</div>
+                  <div className="emp-booking-service">
+                    {b.serviceName}
+                    {b.partySize > 1 && (
+                      <span style={{ marginLeft: 6, fontSize: "0.68rem", background: "rgba(201,151,58,0.15)", color: "var(--ochre)", borderRadius: 10, padding: "1px 6px", fontWeight: 600 }}>
+                        {b.partySize} personas
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <span className={`emp-booking-status ${b.status}`}>{STATUS_ES[b.status]}</span>
               </div>
@@ -778,7 +816,16 @@ function EquipoTab({ onBookingClick, showAlert }) {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { loadTeam(date); }, [date, loadTeam]);
+  useEffect(() => {
+    loadTeam(date);
+    const interval = setInterval(() => loadTeam(date), 30000);
+    const onVisibility = () => { if (!document.hidden) loadTeam(date); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [date, loadTeam]);
 
   const refresh = () => {
     loadTeam(date);

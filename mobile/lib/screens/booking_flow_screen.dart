@@ -13,7 +13,8 @@ class BookingFlowScreen extends StatefulWidget {
 }
 
 class _BookingFlowScreenState extends State<BookingFlowScreen> {
-  int _step = 1; // 1=service, 2=employee, 3=date, 4=details, 5=done
+  int _step = 1; // 1=service, 2=employee, 3=date+partySize, 4=details, 5=done
+  bool _employeeStepShown = false;
 
   Tenant? _tenant;
   List<Service> _services = [];
@@ -25,6 +26,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   Employee? _employee;
   String _date = '';
   String _slot = '';
+  int _partySize = 1;
 
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -72,15 +74,15 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         _loading = false;
       });
       if (!(_tenant?.allowEmployeeChoice ?? true)) {
-        _employee = Employee(id: null, name: '', active: true, serviceIds: [], hasPinSet: false);
-        setState(() => _step = 3);
+        _employee = Employee(id: null, name: 'Sin preferencia', active: true, serviceIds: [], hasPinSet: false);
+        setState(() { _step = 3; _employeeStepShown = false; });
         _loadAvailDates();
       } else if (emps.length == 1) {
         _employee = emps.first;
-        setState(() => _step = 3);
+        setState(() { _step = 3; _employeeStepShown = false; });
         _loadAvailDates();
       } else {
-        setState(() => _step = 2);
+        setState(() { _step = 2; _employeeStepShown = true; });
       }
     } catch (_) {
       setState(() { _loading = false; _step = 3; });
@@ -92,8 +94,9 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     final slug = widget.slug;
     try {
       final empParam = _employee?.id != null ? '&employeeId=${_employee!.id}' : '';
+      final psParam = (_service!.allowPartySize && _partySize > 1) ? '&partySize=$_partySize' : '';
       final data = await ApiService.pubGet(
-          '/$slug/booking/availability/month?serviceId=${_service!.id}$empParam&year=${_calDate.year}&month=${_calDate.month}');
+          '/$slug/booking/availability/month?serviceId=${_service!.id}$empParam&year=${_calDate.year}&month=${_calDate.month}$psParam');
       setState(() => _availDates = (data as List).map((e) => e.toString()).toList());
     } catch (_) {}
   }
@@ -103,9 +106,10 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     final slug = widget.slug;
     setState(() => _slots = []);
     try {
-      final empParamS = _employee?.id != null ? '&employeeId=${_employee!.id}' : '';
+      final empParam = _employee?.id != null ? '&employeeId=${_employee!.id}' : '';
+      final psParam = (_service!.allowPartySize && _partySize > 1) ? '&partySize=$_partySize' : '';
       final data = await ApiService.pubGet(
-          '/$slug/booking/availability?serviceId=${_service!.id}$empParamS&date=$_date');
+          '/$slug/booking/availability?serviceId=${_service!.id}$empParam&date=$_date$psParam');
       setState(() => _slots = (data['slots'] as List).map((e) => e.toString()).toList());
     } catch (_) {}
   }
@@ -119,7 +123,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       setState(() => _error = 'El teléfono es obligatorio');
       return;
     }
-    // Validar campos obligatorios del servicio
     for (final f in (_service?.fields ?? [])) {
       if (f.required && (_fieldCtrl[f.id]?.text.trim().isEmpty ?? true)) {
         setState(() => _error = '${f.label} es obligatorio');
@@ -143,6 +146,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         'customerPhone': _phoneCtrl.text.trim(),
         'notes': _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
         'fieldValues': fieldValues,
+        'partySize': _service!.allowPartySize ? _partySize : 1,
       });
       setState(() { _step = 5; _loading = false; });
     } catch (_) {
@@ -173,7 +177,11 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (_step > 1)
           GestureDetector(
-            onTap: () => setState(() => _step = _step - 1),
+            onTap: () {
+              int next = _step - 1;
+              if (next == 2 && !_employeeStepShown) next = 1;
+              setState(() => _step = next);
+            },
             child: const Row(children: [
               Icon(Icons.arrow_back, color: AppTheme.white, size: 20),
               SizedBox(width: 6),
@@ -220,6 +228,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     }
   }
 
+  // ── Step 1: Servicio ──────────────────────────────────────────────────────
+
   Widget _stepService() => ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _services.length,
@@ -227,7 +237,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           final s = _services[i];
           return GestureDetector(
             onTap: () {
-              setState(() => _service = s);
+              setState(() { _service = s; _partySize = 1; _date = ''; _slot = ''; });
               _loadEmployees();
             },
             child: Container(
@@ -238,7 +248,14 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(s.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.ink)),
                   const SizedBox(height: 4),
-                  Text('Aprox. ${s.duration} min', style: const TextStyle(fontSize: 13, color: AppTheme.inkMuted)),
+                  Row(children: [
+                    Text('${s.duration} min', style: const TextStyle(fontSize: 13, color: AppTheme.inkMuted)),
+                    if (s.capacity != null && s.capacity! > 0) ...[
+                      const Text('  ·  ', style: TextStyle(fontSize: 13, color: AppTheme.inkMuted)),
+                      Text('${s.capacity} plazas${s.allowPartySize ? " (grupos)" : ""}',
+                          style: const TextStyle(fontSize: 13, color: AppTheme.inkMuted)),
+                    ],
+                  ]),
                 ])),
                 if (s.price != null)
                   Container(
@@ -255,11 +272,41 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         },
       );
 
-  Widget _stepEmployee() => ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _employees.length,
-        itemBuilder: (_, i) {
-          final e = _employees[i];
+  // ── Step 2: Empleado ──────────────────────────────────────────────────────
+
+  Widget _stepEmployee() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // "Sin preferencia" siempre visible cuando hay elección
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _employee = Employee(id: null, name: 'Sin preferencia', active: true, serviceIds: [], hasPinSet: false);
+              _step = 3;
+            });
+            _loadAvailDates();
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(16),
+            decoration: AppTheme.cardDecoration(),
+            child: Row(children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppTheme.stoneBorder.withValues(alpha: 0.5),
+                child: const Icon(Icons.shuffle_rounded, color: AppTheme.inkMuted, size: 20),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Sin preferencia', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.ink)),
+                Text('Asignación automática', style: TextStyle(fontSize: 12, color: AppTheme.inkMuted)),
+              ])),
+              const Icon(Icons.chevron_right, color: AppTheme.stoneBorder),
+            ]),
+          ),
+        ),
+        ..._employees.map((e) {
           final initials = e.name.split(' ').map((w) => w[0]).take(2).join().toUpperCase();
           return GestureDetector(
             onTap: () {
@@ -286,8 +333,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
               ]),
             ),
           );
-        },
-      );
+        }),
+      ],
+    );
+  }
+
+  // ── Step 3: Fecha / hora + personas ──────────────────────────────────────
 
   Widget _stepDateTime() {
     final now = DateTime.now();
@@ -298,6 +349,44 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+
+        // ── Selector de personas (ANTES del calendario) ──
+        if (_service!.allowPartySize && (_service!.capacity ?? 0) > 0)
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: AppTheme.cardDecoration(),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('¿Cuántas personas?',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.ink)),
+              const SizedBox(height: 10),
+              Row(children: [
+                IconButton(
+                  icon: Icon(Icons.remove_circle_outline,
+                      color: _partySize > 1 ? AppTheme.blue : AppTheme.stoneBorder),
+                  onPressed: _partySize > 1 ? () {
+                    setState(() { _partySize--; _date = ''; _slot = ''; _slots = []; });
+                    _loadAvailDates();
+                  } : null,
+                ),
+                Text('$_partySize',
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.ink)),
+                IconButton(
+                  icon: Icon(Icons.add_circle_outline,
+                      color: _partySize < (_service!.capacity ?? 1) ? AppTheme.blue : AppTheme.stoneBorder),
+                  onPressed: _partySize < (_service!.capacity ?? 1) ? () {
+                    setState(() { _partySize++; _date = ''; _slot = ''; _slots = []; });
+                    _loadAvailDates();
+                  } : null,
+                ),
+                const SizedBox(width: 4),
+                Text('máx. ${_service!.capacity} plazas',
+                    style: const TextStyle(fontSize: 12, color: AppTheme.inkMuted)),
+              ]),
+            ]),
+          ),
+
+        // ── Calendario ──
         Container(
           padding: const EdgeInsets.all(16),
           decoration: AppTheme.cardDecoration(),
@@ -322,13 +411,15 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             ]),
             const SizedBox(height: 8),
             Row(children: weekdays.map((d) => Expanded(
-              child: Center(child: Text(d, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.inkMuted))),
+              child: Center(child: Text(d,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.inkMuted))),
             )).toList()),
             const SizedBox(height: 4),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 1),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7, childAspectRatio: 1),
               itemCount: (firstWeekday - 1) + daysInMonth,
               itemBuilder: (_, idx) {
                 if (idx < firstWeekday - 1) return const SizedBox();
@@ -350,30 +441,34 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                       color: isSelected ? AppTheme.blue : isAvail ? AppTheme.ochreDim : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Center(child: Text(
-                      '$day',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                        color: isSelected ? AppTheme.white : isPast ? AppTheme.stoneBorder : isAvail ? AppTheme.ochre : AppTheme.ink,
-                      ),
-                    )),
+                    child: Center(child: Text('$day', style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                      color: isSelected ? AppTheme.white
+                          : isPast ? AppTheme.stoneBorder
+                          : isAvail ? AppTheme.ochre
+                          : AppTheme.ink,
+                    ))),
                   ),
                 );
               },
             ),
           ]),
         ),
+
+        // ── Horas ──
         if (_date.isNotEmpty) ...[
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: AppTheme.cardDecoration(),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Hora disponible', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.ink)),
+              const Text('Hora disponible',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.ink)),
               const SizedBox(height: 12),
               if (_slots.isEmpty)
-                const Text('Sin horas disponibles para este día.', style: TextStyle(color: AppTheme.inkMuted))
+                const Text('Sin horas disponibles para este día.',
+                    style: TextStyle(color: AppTheme.inkMuted))
               else
                 Wrap(
                   spacing: 8,
@@ -388,9 +483,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                         decoration: BoxDecoration(
                           color: selected ? AppTheme.blue : AppTheme.stone,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: selected ? AppTheme.blue : AppTheme.stoneBorder),
+                          border: Border.all(
+                              color: selected ? AppTheme.blue : AppTheme.stoneBorder),
                         ),
-                        child: Text(t, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: selected ? AppTheme.white : AppTheme.ink)),
+                        child: Text(t, style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w500,
+                            color: selected ? AppTheme.white : AppTheme.ink)),
                       ),
                     );
                   }).toList(),
@@ -406,8 +504,9 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     );
   }
 
+  // ── Step 4: Datos del cliente ─────────────────────────────────────────────
+
   Widget _stepDetails() {
-    // Inicializar controladores para los campos del servicio
     for (final f in (_service?.fields ?? [])) {
       _fieldCtrl.putIfAbsent(f.id, () => TextEditingController());
     }
@@ -415,15 +514,22 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        // Resumen de la reserva
         Container(
           padding: const EdgeInsets.all(14),
           decoration: AppTheme.cardDecoration(bg: AppTheme.ochreDim),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Resumen', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                color: AppTheme.ochre, letterSpacing: 0.06, textBaseline: TextBaseline.alphabetic)),
+            const SizedBox(height: 8),
             _summaryRow('Servicio', _service!.name),
-            _summaryRow('Profesional', _employee!.name),
+            if (_employee?.id != null) _summaryRow('Profesional', _employee!.name),
             _summaryRow('Fecha', _date),
             _summaryRow('Hora', _slot),
-            if (_service!.price != null) _summaryRow('Precio', '${_service!.price!.toStringAsFixed(2)} €'),
+            if (_service!.allowPartySize && _partySize > 1)
+              _summaryRow('Personas', '$_partySize'),
+            if (_service!.price != null)
+              _summaryRow('Precio', '${_service!.price!.toStringAsFixed(2)} €'),
           ]),
         ),
         const SizedBox(height: 16),
@@ -432,14 +538,16 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         TextField(controller: _nameCtrl, decoration: _inputDec('Tu nombre y apellidos')),
         const SizedBox(height: 12),
         _fieldLabel('Email'),
-        TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: _inputDec('tu@email.com')),
+        TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress,
+            decoration: _inputDec('tu@email.com')),
         const SizedBox(height: 12),
         _fieldLabel('Teléfono *'),
-        TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, decoration: _inputDec('6XX XXX XXX')),
+        TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone,
+            decoration: _inputDec('6XX XXX XXX')),
         const SizedBox(height: 12),
         _fieldLabel('Notas (opcional)'),
-        TextField(controller: _notesCtrl, maxLines: 3, decoration: _inputDec('Observaciones adicionales…')),
-        // Campos personalizados del servicio
+        TextField(controller: _notesCtrl, maxLines: 3,
+            decoration: _inputDec('Observaciones adicionales…')),
         for (final f in (_service?.fields ?? const <CustomField>[])) ...[
           const SizedBox(height: 12),
           _fieldLabel('${f.label}${f.required ? " *" : ""}'),
@@ -450,10 +558,13 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           ),
         ],
         const SizedBox(height: 24),
-        _primaryBtn(_loading ? 'Confirmando…' : 'Confirmar reserva', _loading ? () {} : _submit),
+        _primaryBtn(_loading ? 'Confirmando…' : 'Confirmar reserva',
+            _loading ? () {} : _submit),
       ]),
     );
   }
+
+  // ── Step 5: Confirmación ──────────────────────────────────────────────────
 
   Widget _stepDone() => Center(
         child: Padding(
@@ -466,30 +577,39 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             ),
             const SizedBox(height: 20),
             const Text('¡Reserva confirmada!',
-                style: TextStyle(fontFamily: 'Georgia', fontSize: 22, fontWeight: FontWeight.w600, color: AppTheme.ink)),
+                style: TextStyle(fontFamily: 'Georgia', fontSize: 22,
+                    fontWeight: FontWeight.w600, color: AppTheme.ink)),
             const SizedBox(height: 8),
-            Text('Recibirás la confirmación en ${_emailCtrl.text.isNotEmpty ? _emailCtrl.text : "tu email"}.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: AppTheme.inkMuted)),
+            Text(
+              'Recibirás la confirmación en ${_emailCtrl.text.isNotEmpty ? _emailCtrl.text : "tu email"}.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: AppTheme.inkMuted),
+            ),
             const SizedBox(height: 32),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: AppTheme.cardDecoration(),
               child: Column(children: [
                 _summaryRow('Servicio', _service?.name ?? ''),
-                _summaryRow('Profesional', _employee?.name ?? ''),
+                if (_employee?.id != null) _summaryRow('Profesional', _employee!.name),
                 _summaryRow('Fecha', _date),
                 _summaryRow('Hora', _slot),
+                if (_service?.allowPartySize == true && _partySize > 1)
+                  _summaryRow('Personas', '$_partySize'),
               ]),
             ),
             const SizedBox(height: 24),
             _primaryBtn('Nueva reserva', () => setState(() {
-              _step = 1; _service = null; _employee = null; _date = ''; _slot = '';
-              _nameCtrl.clear(); _emailCtrl.clear(); _phoneCtrl.clear(); _notesCtrl.clear();
+              _step = 1; _service = null; _employee = null;
+              _date = ''; _slot = ''; _partySize = 1;
+              _nameCtrl.clear(); _emailCtrl.clear();
+              _phoneCtrl.clear(); _notesCtrl.clear();
             })),
           ]),
         ),
       );
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   Widget _summaryRow(String label, String value) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
@@ -522,7 +642,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   Widget _fieldLabel(String label) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
-        child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.ink)),
+        child: Text(label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.ink)),
       );
 
   InputDecoration _inputDec(String hint) => InputDecoration(
@@ -531,13 +652,20 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         filled: true,
         fillColor: AppTheme.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.stoneBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.stoneBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.blue, width: 1.5)),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppTheme.stoneBorder)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppTheme.stoneBorder)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppTheme.blue, width: 1.5)),
       );
 
   String _monthName(int m) {
-    const names = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const names = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     return names[m];
   }
 }

@@ -12,7 +12,11 @@ import java.util.List;
 // Contrato del servicio de reservas: disponibilidad, creación y gestión de reservas.
 public interface BookingService {
 
-    AvailabilityResponse getAvailableSlots(Long employeeId, Long serviceId, LocalDate date);
+    AvailabilityResponse getAvailableSlots(Long employeeId, Long serviceId, LocalDate date, int partySize);
+
+    default AvailabilityResponse getAvailableSlots(Long employeeId, Long serviceId, LocalDate date) {
+        return getAvailableSlots(employeeId, serviceId, date, 1);
+    }
 
     List<String> getAvailableDatesForMonth(Long employeeId, Long serviceId, int year, int month);
 

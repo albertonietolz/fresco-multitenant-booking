@@ -54,22 +54,32 @@ class Service {
   final String name;
   final int duration;
   final int? capacity;
+  final int? chairTime;
   final double? price;
   final bool active;
   final int? defaultEmployeeId;
+  final bool allowPartySize;
   final List<CustomField> fields;
+  final String schedulingMode;
+  final String? allowedWeekdays;
+  final String? specificDates;
 
-  Service({required this.id, required this.name, required this.duration, this.capacity, this.price, required this.active, this.defaultEmployeeId, this.fields = const []});
+  Service({required this.id, required this.name, required this.duration, this.capacity, this.chairTime, this.price, required this.active, this.defaultEmployeeId, this.allowPartySize = false, this.fields = const [], this.schedulingMode = 'ANY', this.allowedWeekdays, this.specificDates});
 
   factory Service.fromJson(Map<String, dynamic> j) => Service(
         id: j['id'],
         name: j['name'],
         duration: j['duration'],
         capacity: j['capacity'],
+        chairTime: j['chairTime'],
         price: j['price'] != null ? (j['price'] as num).toDouble() : null,
         active: j['active'] ?? true,
         defaultEmployeeId: j['defaultEmployeeId'],
+        allowPartySize: j['allowPartySize'] ?? false,
         fields: (j['fields'] as List?)?.map((f) => CustomField.fromJson(f)).toList() ?? [],
+        schedulingMode: j['schedulingMode'] ?? 'ANY',
+        allowedWeekdays: j['allowedWeekdays'],
+        specificDates: j['specificDates'],
       );
 }
 
@@ -108,8 +118,9 @@ class Booking {
   final String startTime;
   final String status;
   final String? notes;
+  final int partySize;
 
-  Booking({required this.id, this.employeeId, this.serviceId, required this.customerName, this.customerEmail, this.customerPhone, required this.date, required this.startTime, required this.status, this.notes});
+  Booking({required this.id, this.employeeId, this.serviceId, required this.customerName, this.customerEmail, this.customerPhone, required this.date, required this.startTime, required this.status, this.notes, this.partySize = 1});
 
   factory Booking.fromJson(Map<String, dynamic> j) => Booking(
         id: j['id'],
@@ -122,6 +133,7 @@ class Booking {
         startTime: _parseTime(j['startTime']),
         status: j['status'],
         notes: j['notes'],
+        partySize: j['partySize'] ?? 1,
       );
 
   static String _parseDate(dynamic d) {
@@ -218,6 +230,7 @@ class Client {
 }
 
 class ScheduleBookingSlot {
+  final int id;
   final String startTime;
   final String endTime;
   final String clientName;
@@ -225,9 +238,10 @@ class ScheduleBookingSlot {
   final String status;
   final int durationMinutes;
 
-  ScheduleBookingSlot({required this.startTime, required this.endTime, required this.clientName, required this.serviceName, required this.status, required this.durationMinutes});
+  ScheduleBookingSlot({required this.id, required this.startTime, required this.endTime, required this.clientName, required this.serviceName, required this.status, required this.durationMinutes});
 
   factory ScheduleBookingSlot.fromJson(Map<String, dynamic> j) => ScheduleBookingSlot(
+        id: j['bookingId'] ?? j['id'] ?? 0,
         startTime: j['startTime'],
         endTime: j['endTime'],
         clientName: j['clientName'],

@@ -12,5 +12,9 @@ public record ServiceResponse(
         BigDecimal price,
         Boolean active,
         List<CustomFieldResponse> fields,
-        Long defaultEmployeeId
+        Long defaultEmployeeId,
+        Boolean allowPartySize,
+        String schedulingMode,
+        String allowedWeekdays,
+        String specificDates
 ) {}
